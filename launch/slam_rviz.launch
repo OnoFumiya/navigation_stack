@@ -1,0 +1,5 @@
+<launch>
+  <arg name="rviz"                    default="true"/>
+  <arg name="rviz_cfg"                default="$(find navigation_stack)/config/rviz/slam.rviz"/>
+  <node if="$(arg rviz)" pkg="rviz" type="rviz" name="rviz" args="-d $(arg rviz_cfg)"/>
+</launch>
