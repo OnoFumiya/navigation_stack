@@ -138,14 +138,20 @@ include_directories(
 ## The recommended prefix ensures that target names across packages don't collide
 
 ###
-add_executable(mapping_navigation src/mapping_navigation.cpp)
-target_link_libraries(mapping_navigation
+add_executable(navigation src/navigation.cpp)
+target_link_libraries(navigation
   ${catkin_LIBRARIES}
   ${PYTHON_LIBRARIES}
 )
 
-add_executable(mapping_slam src/mapping_slam.cpp)
-target_link_libraries(mapping_slam
+add_executable(slam src/slam.cpp)
+target_link_libraries(slam
+  ${catkin_LIBRARIES}
+  ${PYTHON_LIBRARIES}
+)
+
+add_executable(expansion_pointer src/expansion_pointer.cpp)
+target_link_libraries(expansion_pointer
   ${catkin_LIBRARIES}
   ${PYTHON_LIBRARIES}
 )
@@ -162,8 +168,8 @@ target_link_libraries(mapping_slam
 # ${PYTHON_LIBRARIES}
 # )
 
-add_executable(mapping_plot src/mapping_plot.cpp)
-target_link_libraries(mapping_plot
+add_executable(plot src/plot.cpp)
+target_link_libraries(plot
   ${catkin_LIBRARIES}
   ${PYTHON_LIBRARIES}
 )

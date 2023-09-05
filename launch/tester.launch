@@ -1,12 +1,7 @@
 <launch>
-    <include file="$(find navigation_stack)/launch/slam_rviz.launch"/>
-    <node pkg="navigation_stack" type="navigation" name="expansion_pointer" output="screen"/>
-    <node pkg="navigation_stack" type="slam"       name="slam">
+    <node pkg="navigation_stack" type="cpp_lecture" name="cpp_lecture" output="screen">
         <param name="mode" value="create"/>
-        <!-- <param name="mode" value="localization"/> -->
     </node>
-    <node pkg="navigation_stack" type="plot"       name="plot"/>
-
 
     <!-- <group ns="/dtw_robot1">
         <node pkg="explore_lite" type="explore" respawn="false" name="explore" output="screen">

@@ -4,6 +4,8 @@
 #include <std_msgs/Bool.h>
 #include <geometry_msgs/Twist.h>
 #include <geometry_msgs/Vector3.h>
+#include <geometry_msgs/Point.h>
+#include <geometry_msgs/Pose.h>
 #include <nav_msgs/Odometry.h>
 #include <sensor_msgs/LaserScan.h>
 #include <vector>
@@ -55,39 +57,29 @@ class ROBOT_POSITION
     private:
         ros::Subscriber sub_odom;
         bool f;
-        void callback_odom(const nav_msgs::Odometry &odom)
+        void callback_robot(const geometry_msgs::Pose &robot)
         {
-            robot_pose.position.x = odom.pose.pose.position.x + missed.position.x;
-            robot_pose.position.y = odom.pose.pose.position.y + missed.position.y;
-            robot_pose.position.z = odom.pose.pose.position.z + missed.position.z + 0.1;
-            robot_pose.orientation.w = odom.pose.pose.orientation.w + missed.orientation.w;
-            robot_pose.orientation.x = odom.pose.pose.orientation.x + missed.orientation.x;
-            robot_pose.orientation.y = odom.pose.pose.orientation.y + missed.orientation.y;
-            robot_pose.orientation.z = odom.pose.pose.orientation.z + missed.orientation.z;
-            sita = (2*(acos(robot_pose.orientation.w)))*((robot_pose.orientation.z)*(robot_pose.orientation.w))/(std::fabs((robot_pose.orientation.z)*(robot_pose.orientation.w)));
-            if ((std::fabs(sita)) > M_PI)
+            robot_pose.position.x = robot.position.x;
+            robot_pose.position.y = robot.position.y;
+            robot_pose.position.z = robot.position.z + 0.03;
+            robot_theta = (2*(acos(robot.orientation.w)))*((robot.orientation.z)*(robot.orientation.w))/(std::fabs((robot.orientation.z)*(robot.orientation.w)));
+            if (std::isnan(robot_theta) == true)
             {
-                sita = (2*M_PI - std::fabs(sita))*(((robot_pose.orientation.z)*(robot_pose.orientation.w))/(std::fabs((robot_pose.orientation.z)*(robot_pose.orientation.w))));
+                robot_theta = 0.0;
             }
-            // position_x = odom.pose.pose.position.x + missed.position.x;
-            // position_y = odom.pose.pose.position.y + missed.position.y;
-            // position_z = odom.pose.pose.position.z + missed.position.z;
-            // sita = (2*(acos(odom.pose.pose.orientation.w + missed.orientation.w)))*((odom.pose.pose.orientation.z + missed.orientation.z)*(odom.pose.pose.orientation.w + missed.orientation.w))/(std::fabs((odom.pose.pose.orientation.z + missed.orientation.z)*(odom.pose.pose.orientation.w + missed.orientation.w)));
-            // if ((std::fabs(sita)) > M_PI)
-            // {
-            //     sita = (2*M_PI - std::fabs(sita))*(((odom.pose.pose.orientation.z + missed.orientation.z)*(odom.pose.pose.orientation.w + missed.orientation.w))/(std::fabs((odom.pose.pose.orientation.z + missed.orientation.z)*(odom.pose.pose.orientation.w + missed.orientation.w))));
-            // }
+            if ((std::fabs(robot_theta)) > M_PI)
+            {
+                robot_theta = (2*M_PI - std::fabs(robot_theta))*(((robot.orientation.z)*(robot.orientation.w))/(std::fabs((robot.orientation.z)*(robot.orientation.w))));
+            }
             f = true;
         }
     public:
         geometry_msgs::Pose robot_pose;
-        geometry_msgs::Pose missed;
-        // float position_x = 100.0, position_y = 100.0, position_z = 0.0, sita;
-        float sita;
+        float robot_theta;
         ROBOT_POSITION()
         {
             ros::NodeHandle node;
-            sub_odom = node.subscribe("/odom", 10, &ROBOT_POSITION::callback_odom, this);
+            sub_odom = node.subscribe("/robot_position", 10, &ROBOT_POSITION::callback_robot, this);
             get_point();
         }
         void get_point()
@@ -195,11 +187,9 @@ class PATH_PLANNING
         GRIDDING gridding;
         int plot_size;
         int zero_point;
-        // int limit_point[4];
         int limit_point_dijkstra[4];
         float max_float;
         std::vector<int> vector_1d_int;
-        // std::vector<int> vector_1d_int_callback;
         std::vector<float> vector_1d_float;
         std::vector<bool> vector_1d_bool;
         std::vector<std::vector<int>> vector_2d;
@@ -222,52 +212,6 @@ class PATH_PLANNING
             }
             f = true;
         }
-        // void callback_map(const navigation_stack::MapInformation &get_map)
-        // {
-        //     f = true;
-        //     vector_1d_int_callback.resize(plot_size,-1);
-        //     vector_2d.resize(plot_size,vector_1d_int_callback);
-        //     for (int i=0; i<get_map.cost.size(); i++)
-        //     {
-        //         vector_2d[zero_point + gridding.float_to_int(get_map.cost[i].x)][zero_point + gridding.float_to_int(get_map.cost[i].y)] = 1;
-        //         // if ((zero_point + gridding.float_to_int(get_map.cost[i].x)) < limit_point[0])
-        //         // {
-        //         //     limit_point[0] = zero_point + gridding.float_to_int(get_map.cost[i].x);
-        //         // }
-        //         // if (limit_point[1] < (zero_point + gridding.float_to_int(get_map.cost[i].x)))
-        //         // {
-        //         //     limit_point[1] = zero_point + gridding.float_to_int(get_map.cost[i].x);
-        //         // }
-        //         // if ((zero_point + gridding.float_to_int(get_map.cost[i].y)) < limit_point[2])
-        //         // {
-        //         //     limit_point[2] = zero_point + gridding.float_to_int(get_map.cost[i].y);
-        //         // }
-        //         // if (limit_point[3] < (zero_point + gridding.float_to_int(get_map.cost[i].y)))
-        //         // {
-        //         //     limit_point[3] = zero_point + gridding.float_to_int(get_map.cost[i].y);
-        //         // }
-        //     }
-        //     for (int i=0; i<get_map.clearly.size(); i++)
-        //     {
-        //         vector_2d[zero_point + gridding.float_to_int(get_map.clearly[i].x)][zero_point + gridding.float_to_int(get_map.clearly[i].y)] = 0;
-        //         // if ((zero_point + gridding.float_to_int(get_map.clearly[i].x)) < limit_point[0])
-        //         // {
-        //         //     limit_point[0] = zero_point + gridding.float_to_int(get_map.clearly[i].x);
-        //         // }
-        //         // if (limit_point[1] < (zero_point + gridding.float_to_int(get_map.clearly[i].x)))
-        //         // {
-        //         //     limit_point[1] = zero_point + gridding.float_to_int(get_map.clearly[i].x);
-        //         // }
-        //         // if ((zero_point + gridding.float_to_int(get_map.clearly[i].y)) < limit_point[2])
-        //         // {
-        //         //     limit_point[2] = zero_point + gridding.float_to_int(get_map.clearly[i].y);
-        //         // }
-        //         // if (limit_point[3] < (zero_point + gridding.float_to_int(get_map.clearly[i].y)))
-        //         // {
-        //         //     limit_point[3] = zero_point + gridding.float_to_int(get_map.clearly[i].y);
-        //         // }
-        //     }
-        // }
     public:
         PATH_PLANNING()
         {
@@ -276,15 +220,8 @@ class PATH_PLANNING
             max_float = (float)((sqrt(std::numeric_limits<float>::max()))/3);
             zero_point = (int)(plot_size/2);
             vector_1d_float.resize(plot_size, max_float);
-            // vector_2d_dijkstra_cost.resize(plot_size,vector_1d_float);
             vector_1d_int.resize(plot_size,-1);
-            // vector_2d.resize(plot_size,vector_1d_int);
             vector_1d_bool.resize(plot_size,false);
-            // vector_2d_dijkstra_bool.resize(plot_size,vector_1d_bool);
-            // limit_point[0] = std::numeric_limits<int>::max();
-            // limit_point[1] = (std::numeric_limits<int>::max())*(-1);
-            // limit_point[2] = std::numeric_limits<int>::max();
-            // limit_point[3] = (std::numeric_limits<int>::max())*(-1);
             sub_map = node.subscribe("/mapping", 10, &PATH_PLANNING::callback_map, this);
             pub_expansion = node.advertise<navigation_stack::ExpansionPoints>("/expansion_poses",10);
             get_sub_map();
@@ -320,7 +257,6 @@ class PATH_PLANNING
             {
                 ros::spinOnce();
                 expansion_pose.poses.clear();
-                // navigation_stack::ExpansionPoints expansion_pose;
                 vector_2d.clear();
                 vector_2d.resize(plot_size,vector_1d_int);
                 vector_2d_dijkstra_cost.clear();
@@ -337,10 +273,6 @@ class PATH_PLANNING
                     vector_2d[zero_point + gridding.float_to_int(get_map_stack.clearly[i].x)][zero_point + gridding.float_to_int(get_map_stack.clearly[i].y)] = 0;
                 }
                 size = get_map_stack.clearly.size();
-                // limit_point_dijkstra[0] = std::numeric_limits<int>::max();
-                // limit_point_dijkstra[1] = (std::numeric_limits<int>::max())*(-1);
-                // limit_point_dijkstra[2] = std::numeric_limits<int>::max();
-                // limit_point_dijkstra[3] = (std::numeric_limits<int>::max())*(-1);
                 pose.position.x = robot_position.robot_pose.position.x;
                 pose.position.y = robot_position.robot_pose.position.y;
                 pose.position.z = 0.0;
@@ -444,15 +376,6 @@ class PATH_PLANNING
                 ros::spinOnce();
                 pub_expansion.publish(expansion_pose);
                 ros::spinOnce();
-                // for (int i=0; i<3; i++)
-                // {
-                //     ros::spinOnce();
-                //     pub_expansion.publish(expansion_pose);
-                //     ros::spinOnce();
-                //     sleep(1);
-                //     ros::spinOnce();
-                // }
-                // ros::spin();
             }
         }
 };
@@ -460,10 +383,7 @@ class PATH_PLANNING
 
 int main(int argc, char **argv)
 {
-    ros::init(argc, argv, "mapping_navigation");
-    // MOVE_CLASS move_class;
-    // move_class.go(0.3, 0.0, 12);
-    // move_class.go(0.0, -0.5, 10);
+    ros::init(argc, argv, "expansion_pointer");
     PATH_PLANNING path_planning;
     ros::spin();
 }

@@ -2,6 +2,8 @@
 #include <ros/ros.h>
 #include <geometry_msgs/Twist.h>
 #include <geometry_msgs/Vector3.h>
+#include <geometry_msgs/Point.h>
+#include <geometry_msgs/Pose.h>
 #include <nav_msgs/Odometry.h>
 #include <sensor_msgs/LaserScan.h>
 #include <vector>
@@ -54,44 +56,68 @@ class ROBOT_POSITION
 {
     private:
         ros::Subscriber sub_odom;
+        ros::Subscriber sub_robot;
         bool f;
         void callback_odom(const nav_msgs::Odometry &odom)
         {
-            robot_pose.position.x = odom.pose.pose.position.x + missed.position.x;
-            robot_pose.position.y = odom.pose.pose.position.y + missed.position.y;
-            robot_pose.position.z = odom.pose.pose.position.z + missed.position.z + 0.03;
-            robot_pose.orientation.w = odom.pose.pose.orientation.w + missed.orientation.w;
-            robot_pose.orientation.x = odom.pose.pose.orientation.x + missed.orientation.x;
-            robot_pose.orientation.y = odom.pose.pose.orientation.y + missed.orientation.y;
-            robot_pose.orientation.z = odom.pose.pose.orientation.z + missed.orientation.z;
-            sita = (2*(acos(odom.pose.pose.orientation.w + missed.orientation.w)))*((odom.pose.pose.orientation.z + missed.orientation.z)*(odom.pose.pose.orientation.w + missed.orientation.w))/(std::fabs((odom.pose.pose.orientation.z + missed.orientation.z)*(odom.pose.pose.orientation.w + missed.orientation.w)));
-            if (std::isnan(sita) == true)
+            odom_pose.x = odom.pose.pose.position.x;
+            odom_pose.y = odom.pose.pose.position.y;
+            odom_pose.z = odom.pose.pose.position.z;
+            odom_theta = (2*(acos(odom.pose.pose.orientation.w)))*((odom.pose.pose.orientation.z)*(odom.pose.pose.orientation.w))/(std::fabs((odom.pose.pose.orientation.z)*(odom.pose.pose.orientation.w)));
+            if (std::isnan(odom_theta) == true)
             {
-                sita = 0.0;
+                odom_theta = 0.0;
             }
-            if ((std::fabs(sita)) > M_PI)
+            if ((std::fabs(odom_theta)) > M_PI)
             {
-                sita = (2*M_PI - std::fabs(sita))*(((robot_pose.orientation.z)*(robot_pose.orientation.w))/(std::fabs((robot_pose.orientation.z)*(robot_pose.orientation.w))));
+                odom_theta = (2*M_PI - std::fabs(odom_theta))*(((odom.pose.pose.orientation.z)*(odom.pose.pose.orientation.w))/(std::fabs((odom.pose.pose.orientation.z)*(odom.pose.pose.orientation.w))));
             }
             // position_x = odom.pose.pose.position.x + missed.position.x;
             // position_y = odom.pose.pose.position.y + missed.position.y;
             // position_z = odom.pose.pose.position.z + missed.position.z;
-            // sita = (2*(acos(odom.pose.pose.orientation.w + missed.orientation.w)))*((odom.pose.pose.orientation.z + missed.orientation.z)*(odom.pose.pose.orientation.w + missed.orientation.w))/(std::fabs((odom.pose.pose.orientation.z + missed.orientation.z)*(odom.pose.pose.orientation.w + missed.orientation.w)));
-            // if ((std::fabs(sita)) > M_PI)
+            // theta = (2*(acos(odom.pose.pose.orientation.w + missed.orientation.w)))*((odom.pose.pose.orientation.z + missed.orientation.z)*(odom.pose.pose.orientation.w + missed.orientation.w))/(std::fabs((odom.pose.pose.orientation.z + missed.orientation.z)*(odom.pose.pose.orientation.w + missed.orientation.w)));
+            // if ((std::fabs(theta)) > M_PI)
             // {
-            //     sita = (2*M_PI - std::fabs(sita))*(((odom.pose.pose.orientation.z + missed.orientation.z)*(odom.pose.pose.orientation.w + missed.orientation.w))/(std::fabs((odom.pose.pose.orientation.z + missed.orientation.z)*(odom.pose.pose.orientation.w + missed.orientation.w))));
+            //     theta = (2*M_PI - std::fabs(theta))*(((odom.pose.pose.orientation.z + missed.orientation.z)*(odom.pose.pose.orientation.w + missed.orientation.w))/(std::fabs((odom.pose.pose.orientation.z + missed.orientation.z)*(odom.pose.pose.orientation.w + missed.orientation.w))));
             // }
+        }
+        void callback_robot(const geometry_msgs::Pose &robot)
+        {
+            robot_pose.position.x = robot.position.x;
+            robot_pose.position.y = robot.position.y;
+            robot_pose.position.z = robot.position.z + 0.03;
+            robot_theta = (2*(acos(robot.orientation.w)))*((robot.orientation.z)*(robot.orientation.w))/(std::fabs((robot.orientation.z)*(robot.orientation.w)));
+            if (std::isnan(robot_theta) == true)
+            {
+                robot_theta = 0.0;
+            }
+            if ((std::fabs(robot_theta)) > M_PI)
+            {
+                robot_theta = (2*M_PI - std::fabs(robot_theta))*(((robot.orientation.z)*(robot.orientation.w))/(std::fabs((robot.orientation.z)*(robot.orientation.w))));
+            }
             f = true;
         }
     public:
         geometry_msgs::Pose robot_pose;
-        geometry_msgs::Pose missed;
-        // float position_x = 100.0, position_y = 100.0, position_z = 0.0, sita;
-        float sita;
+        geometry_msgs::Point odom_pose;
+        float robot_theta = 0.0;
+        float odom_theta = 0.0;
+        geometry_msgs::Point odom_pose_stack;
+        float odom_theta_stack = 0.0;
+        // geometry_msgs::Pose missed;
+        // float position_x = 100.0, position_y = 100.0, position_z = 0.0, theta;
+        float theta;
         ROBOT_POSITION()
         {
             ros::NodeHandle node;
             sub_odom = node.subscribe("/odom", 10, &ROBOT_POSITION::callback_odom, this);
+            sub_robot = node.subscribe("/robot_position", 10, &ROBOT_POSITION::callback_robot, this);
+            odom_pose.x = 0.;
+            odom_pose.y = 0.;
+            odom_pose.z = 0.;
+            odom_pose_stack.x = 0.;
+            odom_pose_stack.y = 0.;
+            odom_pose_stack.z = 0.;
             get_point();
         }
         void get_point()
@@ -115,32 +141,30 @@ class OBSTACLE_DIST
     private:
         ros::Subscriber sub_dist;
         geometry_msgs::Point point;
-        ROBOT_POSITION robot_position;
-        int i;
+        float lidar_pose[2] = {0.2, 0.0};
         bool start_frag;
         void callback_obstacle(const sensor_msgs::LaserScan &ob)
         {
             // range.clear();
-            ob_sita.clear();
+            ob_theta.clear();
             range_point.clear();
-            float a;
             range_angle_increment = ob.angle_increment;
-            for (i=0; i<ob.ranges.size(); i++)
+            for (int i=0; i<ob.ranges.size(); i++)
             {
                 if ((ob.range_min <= ob.ranges[i]) && (ob.ranges[i] <= ob.range_max))
                 {
-                    a = (robot_position.sita + ob.angle_min + range_angle_increment*i);
-                    point.x = robot_position.robot_pose.position.x + (ob.ranges[i]*(cos(a)));
-                    point.y = robot_position.robot_pose.position.y + (ob.ranges[i]*(sin(a)));
+                    point.x = robot_position.robot_pose.position.x + (ob.ranges[i]*(cos(robot_position.robot_theta + ob.angle_min + range_angle_increment*i))) + (lidar_pose[0]*cos(robot_position.robot_theta) - lidar_pose[1]*sin(robot_position.robot_theta));
+                    point.y = robot_position.robot_pose.position.y + (ob.ranges[i]*(sin(robot_position.robot_theta + ob.angle_min + range_angle_increment*i))) + (lidar_pose[0]*sin(robot_position.robot_theta) + lidar_pose[1]*cos(robot_position.robot_theta));
                     point.z = 0.02;
-                    ob_sita.push_back(a);
+                    ob_theta.push_back(robot_position.robot_theta + ob.angle_min + range_angle_increment*i);
                     range_point.push_back(point);
                 }
             }
             start_frag = true;
         }
     public:
-        std::vector<float> ob_sita;
+        ROBOT_POSITION robot_position;
+        std::vector<float> ob_theta;
         // std::vector<float> range;
         std::vector<geometry_msgs::Point> range_point;
         // std::vector<std::vector<double>> range_point;
@@ -155,13 +179,6 @@ class OBSTACLE_DIST
         void get_dist()
         {
             start_frag = false;
-            robot_position.missed.position.x = 0.0;
-            robot_position.missed.position.y = 0.0;
-            robot_position.missed.position.z = 0.0;
-            robot_position.missed.orientation.w = 0.0;
-            robot_position.missed.orientation.x = 0.0;
-            robot_position.missed.orientation.y = 0.0;
-            robot_position.missed.orientation.z = 0.0;
             ros::spinOnce();
             while(ros::ok())
             {
@@ -225,7 +242,7 @@ class PLOT
         ros::Subscriber sub_map;
         ros::Subscriber sub_marker_expansion;
         RvizMarkerLibrary marker_lib;
-        ROBOT_POSITION robot_position;
+        // ROBOT_POSITION robot_position;
         OBSTACLE_DIST obstacle_dist;
         navigation_stack::MapInformation plot_map;
         std::vector<geometry_msgs::Point> expansion_pose;
@@ -293,7 +310,7 @@ class PLOT
             geometry_msgs::Vector3 robot_size;
             geometry_msgs::Vector3 expansion_size;
             geometry_msgs::Pose pose;
-            // geometry_msgs::Pose robot_pose_plot;
+            geometry_msgs::Pose robot_pose_plot;
             scale.x = gridding.size*1.0;
             scale.y = gridding.size*1.0;
             scale.z = 0.00;
@@ -357,14 +374,37 @@ class PLOT
                 }
                 ros::spinOnce();
                 pub_marker_map.publish( marker_lib.makeMarkerList( visualization_msgs::Marker::CUBE_LIST, "map", "cube_list1", pose, points, scale, colors, ros::Duration(1) ) );
-                // robot_pose_plot.position.x = robot_position.robot_pose.position.x;
-                // robot_pose_plot.position.y = robot_position.robot_pose.position.y;
-                // robot_pose_plot.position.z = robot_position.robot_pose.position.z;
-                // robot_pose_plot.orientation.w = robot_position.robot_pose.orientation.w*(1/sqrt(2));
-                // robot_pose_plot.orientation.x = robot_position.robot_pose.orientation.x;
-                // robot_pose_plot.orientation.y = robot_position.robot_pose.orientation.y;
-                // robot_pose_plot.orientation.z = robot_position.robot_pose.orientation.z*(-1/sqrt(2));
-                pub_marker_robot.publish( marker_lib.makeMarker( visualization_msgs::Marker::ARROW, "map", "arrow", robot_position.robot_pose, robot_size, robot_color, ros::Duration(1) ) );
+                obstacle_dist.robot_position.robot_pose.position.x += obstacle_dist.robot_position.odom_pose.x - obstacle_dist.robot_position.odom_pose_stack.x;
+                obstacle_dist.robot_position.robot_pose.position.y += obstacle_dist.robot_position.odom_pose.y - obstacle_dist.robot_position.odom_pose_stack.y;
+                obstacle_dist.robot_position.robot_pose.position.z = 0.03;
+                obstacle_dist.robot_position.robot_theta += obstacle_dist.robot_position.odom_theta - obstacle_dist.robot_position.odom_theta_stack;
+                while (ros::ok())
+                {
+                    if (std::fabs(obstacle_dist.robot_position.odom_theta) > M_PI)
+                    {
+                        if (obstacle_dist.robot_position.odom_theta > 0.)
+                        {
+                            obstacle_dist.robot_position.odom_theta -= 2*M_PI;
+                        }
+                        else
+                        {
+                            obstacle_dist.robot_position.odom_theta += 2*M_PI;
+                        }
+                    }
+                    if (std::fabs(obstacle_dist.robot_position.odom_theta) <= M_PI)
+                    {
+                        break;
+                    }
+                }
+                obstacle_dist.robot_position.robot_pose.orientation.w = cos(obstacle_dist.robot_position.odom_theta / 2.);
+                obstacle_dist.robot_position.robot_pose.orientation.x = 0.;
+                obstacle_dist.robot_position.robot_pose.orientation.y = 0.;
+                obstacle_dist.robot_position.robot_pose.orientation.z = sin(obstacle_dist.robot_position.odom_theta / 2.);
+                pub_marker_robot.publish( marker_lib.makeMarker( visualization_msgs::Marker::ARROW, "map", "arrow", obstacle_dist.robot_position.robot_pose, robot_size, robot_color, ros::Duration(1) ) );
+                obstacle_dist.robot_position.odom_pose_stack.x = obstacle_dist.robot_position.odom_pose.x;
+                obstacle_dist.robot_position.odom_pose_stack.y = obstacle_dist.robot_position.odom_pose.y;
+                obstacle_dist.robot_position.odom_pose_stack.z = obstacle_dist.robot_position.odom_pose.z;
+                obstacle_dist.robot_position.odom_theta_stack = obstacle_dist.robot_position.odom_theta;
                 rgb.r = 1.0;
                 rgb.g = 0.0;
                 rgb.b = 0.0;

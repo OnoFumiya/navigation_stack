@@ -134,26 +134,23 @@ class DIJKSTRA_LECTURE
 };
 
 
+class TEST
+{
+    public:
+        ros::NodeHandle node;
+        std::string mode;
+        TEST(): node("~")
+        {
+            mode = node.param<std::string>( "mode", "/points2" );
+            ROS_INFO("%s\n",mode.c_str());
+        }
+};
 
 
 int main(int argc, char **argv)
 {
     ros::init(argc, argv, "cpp_lecture");
-    // std::vector<std::vector<float>> range_point;
-    // printf("%f\n",range_point[0][0]);
-    // // DIJKSTRA_LECTURE dijkstra_lecture;
-    // ros::spin();
-    // float angle = tan(M_PI/1.999999);
-    float angle = tan(atan2(1., -1.));
-    if (std::isnan(angle))
-    {
-        ROS_INFO("isnan = TRUE");
-    }
-    if (std::isinf(angle))
-    {
-        ROS_INFO("isinf = TRUE");
-    }
-    ROS_INFO("%.2f\n", angle);
+    TEST test;
     ros::spinOnce();
     ros::spin();
 }
