@@ -240,7 +240,6 @@ class PATH_PLANNING
                     break;
                 }
                 ros::spinOnce();
-                sleep(1);
             }
             ros::spinOnce();
         }

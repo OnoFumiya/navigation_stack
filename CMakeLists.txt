@@ -3,6 +3,7 @@ project(navigation_stack)
 
 ## Compile as C++11, supported in ROS Kinetic and newer
 # add_compile_options(-std=c++11)
+add_compile_options(-std=c++14)
 
 ## Find catkin macros and libraries
 ## if COMPONENTS list like find_package(catkin REQUIRED COMPONENTS xyz)
@@ -13,6 +14,7 @@ find_package(catkin REQUIRED COMPONENTS
   std_msgs
   geometry_msgs
   visualization_msgs
+  roslib
   message_generation
 )
 
@@ -106,7 +108,7 @@ generate_messages(
 ## CATKIN_DEPENDS: catkin_packages dependent projects also need
 ## DEPENDS: system dependencies of this project that dependent projects also need
 catkin_package(
-#  INCLUDE_DIRS include
+ INCLUDE_DIRS include
 #  LIBRARIES navigation_stack
  CATKIN_DEPENDS roscpp rospy std_msgs geometry_msgs visualization_msgs message_runtime
 #  DEPENDS system_lib
@@ -119,7 +121,7 @@ catkin_package(
 ## Specify additional locations of header files
 ## Your package locations should be listed before other locations
 include_directories(
-# include
+  include
   ${catkin_INCLUDE_DIRS}
   ${PYTHON_INCLUDE_DIRS}
 )
@@ -147,7 +149,7 @@ target_link_libraries(navigation
 add_executable(slam src/slam.cpp)
 target_link_libraries(slam
   ${catkin_LIBRARIES}
-  ${PYTHON_LIBRARIES}
+  yaml-cpp
 )
 
 add_executable(expansion_pointer src/expansion_pointer.cpp)
@@ -174,6 +176,12 @@ target_link_libraries(plot
   ${PYTHON_LIBRARIES}
 )
 
+add_executable(map_saver src/map_saver.cpp)
+target_link_libraries(map_saver
+  ${catkin_LIBRARIES}
+  yaml-cpp
+)
+
 # add_executable(mapping_control src/mapping_control.cpp)
 # target_link_libraries(mapping_control
 # ${catkin_LIBRARIES}
@@ -190,6 +198,7 @@ add_executable(cpp_lecture src/cpp_lecture.cpp)
 target_link_libraries(cpp_lecture
   ${catkin_LIBRARIES}
   ${PYTHON_LIBRARIES}
+  yaml-cpp
 )
 ###
 

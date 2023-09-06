@@ -1,7 +1,7 @@
 <launch>
-    <node pkg="navigation_stack" type="cpp_lecture" name="cpp_lecture" output="screen">
+    <!-- <node pkg="navigation_stack" type="cpp_lecture" name="cpp_lecture" output="screen">
         <param name="mode" value="create"/>
-    </node>
+    </node> -->
 
     <!-- <group ns="/dtw_robot1">
         <node pkg="explore_lite" type="explore" respawn="false" name="explore" output="screen">
@@ -10,4 +10,10 @@
             <param name="visualize" value="true"/>
         </node>
     </group> -->
+
+    <arg name="save_map"            default="true" />
+    <node if="$(arg save_map)" name="map_saver" pkg="navigation_stack" type="map_saver" launch-prefix="xterm -font r16 -fg floralwhite -bg darkslateblue -e">
+        <!-- <param name="map_save_path" type="str" value="$(find sobit_mapping)/map/"/> -->
+    </node>
+
 </launch>

@@ -1,5 +1,8 @@
 #include <stdio.h>
 #include <ros/ros.h>
+#include <unistd.h>
+#include <yaml-cpp/yaml.h>
+#include <ros/package.h>
 #include <geometry_msgs/Twist.h>
 #include <geometry_msgs/Vector3.h>
 #include <geometry_msgs/Pose.h>
@@ -13,9 +16,11 @@
 #include <limits>
 #include <math.h>
 #include <cmath>
+#include <cstring>
+#include <algorithm>
 #include <typeinfo>
 #include <sys/time.h>
-#include <matplotlib-cpp/matplotlibcpp.h>
+// #include <matplotlib-cpp/matplotlibcpp.h>
 #include <navigation_stack/MapInformation.h>
 
 
@@ -216,6 +221,7 @@ class SLAM
         float angular_missed_grid = 0.03490658503988659; // [rad]
         std::vector<int> vector_1d;
         std::vector<std::vector<int>> vector_2d;
+        std::string map_file;
     public:
         SLAM() : node_h("~")
         {
@@ -226,8 +232,11 @@ class SLAM
             zero_point = (int)(plot_size/2);
             vector_1d.resize(plot_size,-1);
             vector_2d.resize(plot_size,vector_1d);
-            mode = node_h.param<std::string>( "mode", "localization" );
-            ROS_INFO("%s\n",mode.c_str());
+            mode = node_h.param<std::string>( "mode", "NAVIGATION" );
+            if (mode == "NAVIGATION")
+            {
+                map_file = node_h.param<std::string>( "map_file", "map_file" );
+            }
             SLAM_control();
         }
         void SLAM_control()
@@ -236,6 +245,12 @@ class SLAM
             limit_point[1] = (std::numeric_limits<int>::max())*(-1);
             limit_point[2] = std::numeric_limits<int>::max();
             limit_point[3] = (std::numeric_limits<int>::max())*(-1);
+            ros::spinOnce();
+            if (mode == "NAVIGATION")
+            {
+                // save_file = ros::package::getPath("navigation_stack") + "/map/";
+                get_map();
+            }
             ros::spinOnce();
             float true_diff_x = 0., true_diff_y = 0., true_diff_theta = 0.;
             while (ros::ok())
@@ -275,13 +290,13 @@ class SLAM
                 odom_stack_pose.x = odom_position.odom_pose.x;
                 odom_stack_pose.y = odom_position.odom_pose.y;
                 odom_stack_theta = odom_position.theta;
-                if (mode == "create")
+                if (mode == "CREATE")
                 {
                     mapping(obstacle_dist.robot_position.robot_pose, obstacle_dist.robot_position.theta, range_point_stack, angle_stack);
                 }
-                else if (mode == "localization")
+                else if (mode == "NAVIGATION")
                 {
-                    localization_publisher(obstacle_dist.robot_position.robot_pose, obstacle_dist.robot_position.theta);
+                    data_publisher(obstacle_dist.robot_position.robot_pose, obstacle_dist.robot_position.theta);
                 }
                 sleep(3);
             }
@@ -442,8 +457,10 @@ class SLAM
             map.cost.clear();
             map.clearly.clear();
         }
-        void localization_publisher(geometry_msgs::Point robot_pose, float robot_theta)
+        void data_publisher(geometry_msgs::Point robot_pose, float robot_theta)
         {
+            ros::spinOnce();
+
             robot_position.position.x = robot_pose.x;
             robot_position.position.y = robot_pose.y;
             robot_position.position.z = 0.0;
@@ -453,9 +470,12 @@ class SLAM
             robot_position.orientation.y = 0.00;
             robot_position.orientation.z = sin(robot_theta / 2.);
 
+            pub_map.publish(map);
             pub_robot_position.publish(robot_position);
             ros::spinOnce();
         }
+        void get_map()
+        {}
 };
 
 

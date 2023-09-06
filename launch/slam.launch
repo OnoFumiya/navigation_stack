@@ -1,11 +1,19 @@
 <launch>
     <include file="$(find navigation_stack)/launch/slam_rviz.launch"/>
-    <node pkg="navigation_stack" type="navigation" name="expansion_pointer" output="screen"/>
-    <node pkg="navigation_stack" type="slam"       name="slam">
-        <param name="mode" value="create"/>
-        <!-- <param name="mode" value="localization"/> -->
+    <node pkg="navigation_stack" type="expansion_pointer" name="expansion_pointer" output="screen"/>
+    <node pkg="navigation_stack" type="slam"              name="slam">
+        <param name="mode" value="CREATE"/>
+        <!-- <param name="mode" value="NAVIGATION"/> -->
     </node>
-    <node pkg="navigation_stack" type="plot"       name="plot"/>
+    <node pkg="navigation_stack" type="plot"              name="plot"/>
+
+
+
+    <arg name="save_map"            default="true" />
+    <node if="$(arg save_map)" name="map_saver" pkg="navigation_stack" type="map_saver" launch-prefix="xterm -font r16 -fg floralwhite -bg darkslateblue -e">
+        <!-- <param name="map_save_path" type="str" value="$(find sobit_mapping)/map/"/> -->
+    </node>
+
 
 
     <!-- <group ns="/dtw_robot1">

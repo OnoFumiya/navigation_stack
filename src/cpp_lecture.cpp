@@ -1,18 +1,28 @@
 #include <stdio.h>
 #include <ros/ros.h>
+#include <unistd.h>
+#include <yaml-cpp/yaml.h>
+#include <ros/package.h>
 #include <geometry_msgs/Twist.h>
 #include <geometry_msgs/Vector3.h>
+#include <geometry_msgs/Pose.h>
+#include <geometry_msgs/Point.h>
 #include <nav_msgs/Odometry.h>
 #include <sensor_msgs/LaserScan.h>
 #include <std_msgs/Bool.h>
 #include <vector>
 #include <string>
 #include <iostream>
+#include <chrono>
+#include <ctime>
 #include <limits>
-#include <cmath>
 #include <math.h>
+#include <cmath>
+#include <cstring>
+#include <algorithm>
 #include <typeinfo>
 #include <sys/time.h>
+#include <fstream>
 #include <matplotlib-cpp/matplotlibcpp.h>
 #include <navigation_stack/MapInformation.h>
 
@@ -147,12 +157,22 @@ class TEST
 };
 
 
+struct Cost{
+    std::string cost;
+};
+
+struct Position{
+    float x;
+    float y;
+};
+
+
 int main(int argc, char **argv)
 {
-    ros::init(argc, argv, "cpp_lecture");
-    TEST test;
-    ros::spinOnce();
-    ros::spin();
+    // ros::init(argc, argv, "cpp_lecture");
+    // TEST test;
+    // ros::spinOnce();
+    // ros::spin();
 }
 
 
