@@ -17,6 +17,7 @@
 #include <matplotlib-cpp/matplotlibcpp.h>
 #include <navigation_stack/MapInformation.h>
 #include <navigation_stack/ExpansionPoints.h>
+#include <navigation_stack/PathPoint.h>
 #include <visualization_msgs/MarkerArray.h>
 
 
@@ -26,7 +27,7 @@ class GRIDDING
     public:
         float size = 0.1;
         float arg_size = 1/size;
-        float float_to_grid(float s, bool f=true)
+        float float_to_grid(float s, bool f=true)  // 適当な値をgrid幅に矯正する関数
         {
             float r = s - (((float)(s/size) - (int)(s/size))*size);
             if ((s<0) && (f))
@@ -36,7 +37,7 @@ class GRIDDING
             r += (size/2);
             return r;
         }
-        int float_to_int(float s, bool f=true)
+        int float_to_int(float s, bool f=true)  // grid幅の値を0を基準にした格納番号(int型)に変換する関数
         {
             int r = s*arg_size;
             if ((s<0) && (f))
@@ -45,9 +46,9 @@ class GRIDDING
             }
             return r;
         }
-        float int_to_grid(int s)
+        float int_to_grid(int s)  // float_to_intの逆をする
         {
-            return (float)((s/arg_size) + (1/(2*arg_size)));
+            return (float)((s/arg_size) + (size/2.0)*(s/std::fabs(s)));
         }
 };
 
@@ -95,6 +96,10 @@ class ROBOT_POSITION
             {
                 robot_theta = (2*M_PI - std::fabs(robot_theta))*(((robot.orientation.z)*(robot.orientation.w))/(std::fabs((robot.orientation.z)*(robot.orientation.w))));
             }
+            // robot_pose.orientation.w = robot.orientation.w;
+            // robot_pose.orientation.x = robot.orientation.x;
+            // robot_pose.orientation.y = robot.orientation.y;
+            // robot_pose.orientation.z = robot.orientation.z;
             f = true;
         }
     public:
@@ -129,6 +134,10 @@ class ROBOT_POSITION
                 ros::spinOnce();
                 if (f)
                 {
+                    odom_pose_stack.x = odom_pose.x;
+                    odom_pose_stack.y = odom_pose.y;
+                    odom_pose_stack.z = odom_pose.z;
+                    odom_theta_stack = odom_theta;
                     break;
                 }
             }
@@ -141,7 +150,7 @@ class OBSTACLE_DIST
     private:
         ros::Subscriber sub_dist;
         geometry_msgs::Point point;
-        float lidar_pose[2] = {0.2, 0.0};
+        float lidar_pose[2] = {0.0, 0.0};
         bool start_frag;
         void callback_obstacle(const sensor_msgs::LaserScan &ob)
         {
@@ -239,14 +248,17 @@ class PLOT
         ros::Publisher pub_marker_robot;
         ros::Publisher pub_marker_ob;
         ros::Publisher pub_marker_expansion;
+        ros::Publisher pub_marker_globalpath;
         ros::Subscriber sub_map;
         ros::Subscriber sub_marker_expansion;
+        ros::Subscriber sub_marker_globalpath;
         RvizMarkerLibrary marker_lib;
         // ROBOT_POSITION robot_position;
         OBSTACLE_DIST obstacle_dist;
         navigation_stack::MapInformation plot_map;
         std::vector<geometry_msgs::Point> expansion_pose;
-        bool map_set_frag,expansion_frag;
+        std::vector<geometry_msgs::Point> globalpath_pose;
+        bool map_set_frag,expansion_frag,globalpath_frag;
         void callback_map(const navigation_stack::MapInformation &get_map)
         {
             plot_map.cost.clear();
@@ -274,6 +286,19 @@ class PLOT
             }
             expansion_frag = true;
         }
+        void callback_globalpath(const navigation_stack::PathPoint &gpp)
+        {
+            geometry_msgs::Point pt_e;
+            pt_e.z = 0.00;
+            globalpath_pose.clear();
+            for (int i=0; i<gpp.poses.size(); i++)
+            {
+                pt_e.x = gpp.poses[i].x;
+                pt_e.y = gpp.poses[i].y;
+                globalpath_pose.push_back(pt_e);
+            }
+            globalpath_frag = true;
+        }
     public:
         PLOT()
         {
@@ -282,8 +307,10 @@ class PLOT
             pub_marker_robot = node.advertise<visualization_msgs::Marker>("/active_map", 10);
             pub_marker_ob = node.advertise<visualization_msgs::Marker>("/active_map", 10);
             pub_marker_expansion = node.advertise<visualization_msgs::Marker>("/active_map", 10);
+            pub_marker_globalpath = node.advertise<visualization_msgs::Marker>("/active_map", 10);
             sub_map = node.subscribe("/mapping", 10, &PLOT::callback_map, this);
             sub_marker_expansion = node.subscribe("/expansion_poses", 10, &PLOT::callback_expansion, this);
+            sub_marker_globalpath = node.subscribe("/global_path_planning", 10, &PLOT::callback_globalpath, this);
             get_plot();
             mapping_plot();
         }
@@ -291,6 +318,7 @@ class PLOT
         {
             map_set_frag = false;
             expansion_frag = false;
+            globalpath_frag = false;
             while (ros::ok())
             {
                 if (map_set_frag)
@@ -308,7 +336,7 @@ class PLOT
             geometry_msgs::Vector3 scale;
             geometry_msgs::Vector3 local_ob_size;
             geometry_msgs::Vector3 robot_size;
-            geometry_msgs::Vector3 expansion_size;
+            geometry_msgs::Vector3 grid_size;
             geometry_msgs::Pose pose;
             geometry_msgs::Pose robot_pose_plot;
             scale.x = gridding.size*1.0;
@@ -317,12 +345,12 @@ class PLOT
             local_ob_size.x = gridding.size/3;
             local_ob_size.y = gridding.size/3;
             local_ob_size.z = 0.0;
-            // expansion_size.x = gridding.size;
-            // expansion_size.y = gridding.size;
-            // expansion_size.z = 0.001;
-            expansion_size.x = gridding.size;
-            expansion_size.y = gridding.size;
-            expansion_size.z = 0.01;
+            // grid_size.x = gridding.size;
+            // grid_size.y = gridding.size;
+            // grid_size.z = 0.001;
+            grid_size.x = gridding.size;
+            grid_size.y = gridding.size;
+            grid_size.z = 0.01;
             robot_size.x = 0.5;
             robot_size.y = 0.15;
             robot_size.z = 0.00;
@@ -338,6 +366,7 @@ class PLOT
             std_msgs::ColorRGBA robot_color;
             std::vector<std_msgs::ColorRGBA> ob_colors;
             std::vector<std_msgs::ColorRGBA> expansion_colors;
+            std::vector<std_msgs::ColorRGBA> globalpath_colors;
             robot_color.a = 1.0;
             robot_color.r = 0.0;
             robot_color.g = 0.0;
@@ -352,6 +381,7 @@ class PLOT
                 colors.clear();
                 ob_colors.clear();
                 expansion_colors.clear();
+                globalpath_colors.clear();
                 for (int i=0; i<plot_map.cost.size(); i++)
                 {
                     rgb.r = 0;
@@ -380,26 +410,26 @@ class PLOT
                 obstacle_dist.robot_position.robot_theta += obstacle_dist.robot_position.odom_theta - obstacle_dist.robot_position.odom_theta_stack;
                 while (ros::ok())
                 {
-                    if (std::fabs(obstacle_dist.robot_position.odom_theta) > M_PI)
+                    if (std::fabs(obstacle_dist.robot_position.robot_theta) > M_PI)
                     {
-                        if (obstacle_dist.robot_position.odom_theta > 0.)
+                        if (obstacle_dist.robot_position.robot_theta > 0.)
                         {
-                            obstacle_dist.robot_position.odom_theta -= 2*M_PI;
+                            obstacle_dist.robot_position.robot_theta -= 2*M_PI;
                         }
                         else
                         {
-                            obstacle_dist.robot_position.odom_theta += 2*M_PI;
+                            obstacle_dist.robot_position.robot_theta += 2*M_PI;
                         }
                     }
-                    if (std::fabs(obstacle_dist.robot_position.odom_theta) <= M_PI)
+                    if (std::fabs(obstacle_dist.robot_position.robot_theta) <= M_PI)
                     {
                         break;
                     }
                 }
-                obstacle_dist.robot_position.robot_pose.orientation.w = cos(obstacle_dist.robot_position.odom_theta / 2.);
+                obstacle_dist.robot_position.robot_pose.orientation.w = cos(obstacle_dist.robot_position.robot_theta / 2.);
                 obstacle_dist.robot_position.robot_pose.orientation.x = 0.;
                 obstacle_dist.robot_position.robot_pose.orientation.y = 0.;
-                obstacle_dist.robot_position.robot_pose.orientation.z = sin(obstacle_dist.robot_position.odom_theta / 2.);
+                obstacle_dist.robot_position.robot_pose.orientation.z = sin(obstacle_dist.robot_position.robot_theta / 2.);
                 pub_marker_robot.publish( marker_lib.makeMarker( visualization_msgs::Marker::ARROW, "map", "arrow", obstacle_dist.robot_position.robot_pose, robot_size, robot_color, ros::Duration(1) ) );
                 obstacle_dist.robot_position.odom_pose_stack.x = obstacle_dist.robot_position.odom_pose.x;
                 obstacle_dist.robot_position.odom_pose_stack.y = obstacle_dist.robot_position.odom_pose.y;
@@ -412,11 +442,19 @@ class PLOT
                 pub_marker_ob.publish( marker_lib.makeMarkerList( visualization_msgs::Marker::POINTS, "map", "point_list1", pose, obstacle_dist.range_point, local_ob_size, ob_colors, ros::Duration(1) ) );
                 if (expansion_frag)
                 {
-                    rgb.r = 0.0;
+                    rgb.r = 1.0;
                     rgb.g = 1.0;
                     rgb.b = 0.0;
                     expansion_colors.resize(expansion_pose.size(),rgb);
-                    pub_marker_expansion.publish( marker_lib.makeMarkerList( visualization_msgs::Marker::CUBE_LIST, "map", "cube_list2", pose, expansion_pose, expansion_size, expansion_colors, ros::Duration(1) ) );
+                    pub_marker_expansion.publish( marker_lib.makeMarkerList( visualization_msgs::Marker::CUBE_LIST, "map", "cube_list2", pose, expansion_pose, grid_size, expansion_colors, ros::Duration(1) ) );
+                }
+                if (globalpath_frag)
+                {
+                    rgb.r = 1.0;
+                    rgb.g = 1.0;
+                    rgb.b = 0.0;
+                    globalpath_colors.resize(globalpath_pose.size(),rgb);
+                    pub_marker_globalpath.publish( marker_lib.makeMarkerList( visualization_msgs::Marker::CUBE_LIST, "map", "cube_list2", pose, globalpath_pose, grid_size, globalpath_colors, ros::Duration(1) ) );
                 }
                 ros::spinOnce();
             }

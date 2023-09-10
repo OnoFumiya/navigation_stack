@@ -47,7 +47,7 @@ class GRIDDING
         }
         float int_to_grid(int s)  // float_to_intの逆をする
         {
-            return (float)((s/arg_size) + (1/(2*arg_size)));
+            return (float)((s/arg_size) + (size/2.0));
         }
 };
 
@@ -179,7 +179,7 @@ class MOVE_CLASS
 };
 
 
-class PATH_PLANNING
+class EXPANSION_POINTER
 {
     private:
         ros::Publisher pub_expansion;
@@ -213,16 +213,16 @@ class PATH_PLANNING
             f = true;
         }
     public:
-        PATH_PLANNING()
+        EXPANSION_POINTER()
         {
             ros::NodeHandle node;
-            plot_size = (int)((sqrt(std::numeric_limits<int>::max()))/3);
+            plot_size = (int)((sqrt(std::numeric_limits<int>::max()))/4);
             max_float = (float)((sqrt(std::numeric_limits<float>::max()))/3);
             zero_point = (int)(plot_size/2);
             vector_1d_float.resize(plot_size, max_float);
             vector_1d_int.resize(plot_size,-1);
             vector_1d_bool.resize(plot_size,false);
-            sub_map = node.subscribe("/mapping", 10, &PATH_PLANNING::callback_map, this);
+            sub_map = node.subscribe("/mapping", 10, &EXPANSION_POINTER::callback_map, this);
             pub_expansion = node.advertise<navigation_stack::ExpansionPoints>("/expansion_poses",10);
             get_sub_map();
             dijkstra();
@@ -383,6 +383,6 @@ class PATH_PLANNING
 int main(int argc, char **argv)
 {
     ros::init(argc, argv, "expansion_pointer");
-    PATH_PLANNING path_planning;
+    EXPANSION_POINTER expansion_pointer;
     ros::spin();
 }

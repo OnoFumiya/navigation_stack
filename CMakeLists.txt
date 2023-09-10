@@ -56,6 +56,7 @@ add_message_files(
   FILES
   MapInformation.msg
   ExpansionPoints.msg
+  PathPoint.msg
 )
 
 ## Generate services in the 'srv' folder
@@ -140,8 +141,14 @@ include_directories(
 ## The recommended prefix ensures that target names across packages don't collide
 
 ###
-add_executable(navigation src/navigation.cpp)
-target_link_libraries(navigation
+add_executable(navigation_global_path src/navigation_global_path.cpp)
+target_link_libraries(navigation_global_path
+  ${catkin_LIBRARIES}
+  ${PYTHON_LIBRARIES}
+)
+
+add_executable(navigation_local_path src/navigation_local_path.cpp)
+target_link_libraries(navigation_local_path
   ${catkin_LIBRARIES}
   ${PYTHON_LIBRARIES}
 )

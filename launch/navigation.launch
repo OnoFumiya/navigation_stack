@@ -1,0 +1,20 @@
+<launch>
+
+    <arg name="map_file" default="$(find navigation_stack)/map/mapping_lecture.yaml"/>
+
+
+    <include file="$(find navigation_stack)/launch/slam_rviz.launch"/>
+    <node pkg="navigation_stack" type="navigation_global_path" name="navigation_global_path" output="screen"/>
+    <!-- <node pkg="navigation_stack" type="expansion_pointer" name="expansion_pointer"               /> -->
+    <node pkg="navigation_stack" type="slam"                   name="slam">
+        <!-- <param name="mode" value="CREATE"/> -->
+        <param name="mode" value="NAVIGATION"/>
+        <param name="map_file" value="$(arg map_file)"/>
+    </node>
+    <node pkg="navigation_stack" type="plot"                   name="plot"/>
+
+
+    <!-- <arg name="save_map"            default="true" />
+    <node if="$(arg save_map)" name="map_saver" pkg="navigation_stack" type="map_saver" launch-prefix="xterm -font r16 -fg floralwhite -bg darkslateblue -e"/> -->
+
+</launch>

@@ -27,16 +27,6 @@
 #include <navigation_stack/MapInformation.h>
 
 
-
-
-/* 
-<arg name="save_map"            default="true" />
-<node if="$(arg save_map)" name="save_map_command" pkg="sobit_mapping" type="save_map_command.py" launch-prefix="xterm -font r16 -fg floralwhite -bg darkslateblue -e">
-    <param name="map_save_path" type="str" value="$(find sobit_mapping)/map/"/>
-</node>
-*/ 
-
-
 class MAP_SAVER
 {
     private:
@@ -45,7 +35,6 @@ class MAP_SAVER
         char save_file_name[100];
         navigation_stack::MapInformation map;
         bool map_set_frag = false;
-        YAML::Node yaml_data;
         void callback_map(const navigation_stack::MapInformation &get_map)
         {
             map.cost.clear();
@@ -116,20 +105,28 @@ class MAP_SAVER
                 }
                 save_file_name_str += ".yaml";
                 printf("\n\n\nSave this map as %s ...\n\n\n",save_file_name_str.c_str());
-
-                // yaml_data["cost"]
                 ros::spinOnce();
+
+                YAML::Node yaml_data, yaml_positions_set_cost, yaml_positions_set_clearly;
                 for (int i=0; i<map.cost.size(); i++)
                 {
-                    yaml_data["map_data"]["cost"][std::to_string(i)]["x"] = map.cost[i].x;
-                    yaml_data["map_data"]["cost"][std::to_string(i)]["y"] = map.cost[i].y;
+                    YAML::Node yaml_point;
+                    yaml_point["x"] = map.cost[i].x;
+                    yaml_point["y"] = map.cost[i].y;
+                    yaml_positions_set_cost.push_back(yaml_point);
                 }
+                yaml_data["map_data"]["cost"] = yaml_positions_set_cost;
+
                 for (int i=0; i<map.clearly.size(); i++)
                 {
-                    yaml_data["map_data"]["clearly"][std::to_string(i)]["x"] = map.clearly[i].x;
-                    yaml_data["map_data"]["clearly"][std::to_string(i)]["y"] = map.clearly[i].y;
+                    YAML::Node yaml_point;
+                    yaml_point["x"] = map.clearly[i].x;
+                    yaml_point["y"] = map.clearly[i].y;
+                    yaml_positions_set_clearly.push_back(yaml_point);
                 }
-                ros::spinOnce();
+                yaml_data["map_data"]["clearly"] = yaml_positions_set_clearly;
+
+                // ファイルに書き込み
                 std::string file_path = ros::package::getPath("navigation_stack") + "/map/" + save_file_name_str;
                 std::ofstream file(file_path);
                 if (file.is_open())

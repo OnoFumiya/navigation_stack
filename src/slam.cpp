@@ -7,12 +7,15 @@
 #include <geometry_msgs/Vector3.h>
 #include <geometry_msgs/Pose.h>
 #include <geometry_msgs/Point.h>
+#include <geometry_msgs/PoseWithCovarianceStamped.h>
+#include <geometry_msgs/PoseStamped.h>
 #include <nav_msgs/Odometry.h>
 #include <sensor_msgs/LaserScan.h>
 #include <std_msgs/Bool.h>
 #include <vector>
 #include <string>
 #include <iostream>
+#include <fstream>
 #include <limits>
 #include <math.h>
 #include <cmath>
@@ -51,74 +54,158 @@ class GRIDDING
         }
         float int_to_grid(int s)  // float_to_intの逆をする
         {
-            return (float)((s/arg_size) + (1/(2*arg_size)));
+            return (float)((s/arg_size) + (size/2.0)*(s/std::fabs(s)));
         }
 };
+
+
+// class ROBOT_POSITION
+// {
+//     public:
+//         geometry_msgs::Point robot_pose;
+//         float theta;
+//         ROBOT_POSITION()
+//         {
+//             robot_pose.x = 0.0;
+//             robot_pose.y = 0.0;
+//             robot_pose.z = 0.0;
+//             theta = 0.0;
+//         }
+// };
+
+
+// class ODOM_POSITION
+// {
+//     private:
+//         ros::Subscriber sub_odom;
+//         void callback_odom(const nav_msgs::Odometry &odom)
+//         {
+//             odom_pose.x = odom.pose.pose.position.x;
+//             odom_pose.y = odom.pose.pose.position.y;
+//             odom_pose.z = odom.pose.pose.position.z;
+//             theta = (2*(acos(odom.pose.pose.orientation.w)))*((odom.pose.pose.orientation.z)*(odom.pose.pose.orientation.w))/(std::fabs((odom.pose.pose.orientation.z)*(odom.pose.pose.orientation.w)));
+//             if (std::isnan(theta) == true)
+//             {
+//                 theta = 0.0;
+//             }
+//             if ((std::fabs(theta)) > M_PI)
+//             {
+//                 theta = (2*M_PI - std::fabs(theta))*(((odom.pose.pose.orientation.z)*(odom.pose.pose.orientation.w))/(std::fabs((odom.pose.pose.orientation.z)*(odom.pose.pose.orientation.w))));
+//             }
+//             odom_position_frag = true;
+//         }
+//     public:
+//         geometry_msgs::Point odom_pose;
+//         float theta;
+//         bool odom_position_frag;
+//         ODOM_POSITION()
+//         {
+//             ros::NodeHandle node;
+//             odom_position_frag = false;
+//             sub_odom = node.subscribe("/odom", 10, &ODOM_POSITION::callback_odom, this);
+//             get_point();
+//         }
+//         void get_point()
+//         {
+//             odom_pose.x = 0.0;
+//             odom_pose.y = 0.0;
+//             odom_pose.z = 0.0;
+//             theta = 0.0;
+//             odom_position_frag = false;
+//             ros::spinOnce();
+//             while (ros::ok())
+//             {
+//                 ros::spinOnce();
+//                 if (odom_position_frag)
+//                 {
+//                     break;
+//                 }
+//             }
+//         }
+// };
+
 
 
 class ROBOT_POSITION
 {
-    public:
-        geometry_msgs::Point robot_pose;
-        float theta;
-        ROBOT_POSITION()
-        {
-            robot_pose.x = 0.0;
-            robot_pose.y = 0.0;
-            robot_pose.z = 0.0;
-            theta = 0.0;
-        }
-};
-
-class ODOM_POSITION
-{
     private:
         ros::Subscriber sub_odom;
+        bool f;
         void callback_odom(const nav_msgs::Odometry &odom)
         {
             odom_pose.x = odom.pose.pose.position.x;
             odom_pose.y = odom.pose.pose.position.y;
             odom_pose.z = odom.pose.pose.position.z;
-            theta = (2*(acos(odom.pose.pose.orientation.w)))*((odom.pose.pose.orientation.z)*(odom.pose.pose.orientation.w))/(std::fabs((odom.pose.pose.orientation.z)*(odom.pose.pose.orientation.w)));
-            if (std::isnan(theta) == true)
+            odom_theta = (2*(acos(odom.pose.pose.orientation.w)))*((odom.pose.pose.orientation.z)*(odom.pose.pose.orientation.w))/(std::fabs((odom.pose.pose.orientation.z)*(odom.pose.pose.orientation.w)));
+            if (std::isnan(odom_theta) == true)
             {
-                theta = 0.0;
+                odom_theta = 0.0;
             }
-            if ((std::fabs(theta)) > M_PI)
+            if ((std::fabs(odom_theta)) > M_PI)
             {
-                theta = (2*M_PI - std::fabs(theta))*(((odom.pose.pose.orientation.z)*(odom.pose.pose.orientation.w))/(std::fabs((odom.pose.pose.orientation.z)*(odom.pose.pose.orientation.w))));
+                odom_theta = (2*M_PI - std::fabs(odom_theta))*(((odom.pose.pose.orientation.z)*(odom.pose.pose.orientation.w))/(std::fabs((odom.pose.pose.orientation.z)*(odom.pose.pose.orientation.w))));
             }
-            odom_position_frag = true;
+            // position_x = odom.pose.pose.position.x + missed.position.x;
+            // position_y = odom.pose.pose.position.y + missed.position.y;
+            // position_z = odom.pose.pose.position.z + missed.position.z;
+            // theta = (2*(acos(odom.pose.pose.orientation.w + missed.orientation.w)))*((odom.pose.pose.orientation.z + missed.orientation.z)*(odom.pose.pose.orientation.w + missed.orientation.w))/(std::fabs((odom.pose.pose.orientation.z + missed.orientation.z)*(odom.pose.pose.orientation.w + missed.orientation.w)));
+            // if ((std::fabs(theta)) > M_PI)
+            // {
+            //     theta = (2*M_PI - std::fabs(theta))*(((odom.pose.pose.orientation.z + missed.orientation.z)*(odom.pose.pose.orientation.w + missed.orientation.w))/(std::fabs((odom.pose.pose.orientation.z + missed.orientation.z)*(odom.pose.pose.orientation.w + missed.orientation.w))));
+            // }
+            f = true;
         }
     public:
-        // geometry_msgs::Pose missed;
+        geometry_msgs::Pose robot_pose;
         geometry_msgs::Point odom_pose;
-        float theta;
-        bool odom_position_frag;
-        ODOM_POSITION()
+        float robot_theta = 0.0;
+        float odom_theta = 0.0;
+        geometry_msgs::Point odom_pose_stack;
+        float odom_theta_stack = 0.0;
+        // geometry_msgs::Pose missed;
+        // float position_x = 100.0, position_y = 100.0, position_z = 0.0, theta;
+        // float theta;
+        ROBOT_POSITION()
         {
             ros::NodeHandle node;
-            odom_position_frag = false;
-            sub_odom = node.subscribe("/odom", 10, &ODOM_POSITION::callback_odom, this);
+            sub_odom = node.subscribe("/odom", 10, &ROBOT_POSITION::callback_odom, this);
+            odom_pose.x = 0.;
+            odom_pose.y = 0.;
+            odom_pose.z = 0.;
+            odom_pose_stack.x = 0.;
+            odom_pose_stack.y = 0.;
+            odom_pose_stack.z = 0.;
             get_point();
         }
         void get_point()
         {
-            odom_pose.x = 0.0;
-            odom_pose.y = 0.0;
-            odom_pose.z = 0.0;
-            theta = 0.0;
-            odom_position_frag = false;
+            f = false;
             ros::spinOnce();
             while (ros::ok())
             {
                 ros::spinOnce();
-                if (odom_position_frag)
+                if (f)
                 {
+                    odom_pose_stack.x = odom_pose.x;
+                    odom_pose_stack.y = odom_pose.y;
+                    odom_pose_stack.z = odom_pose.z;
+                    odom_theta_stack = odom_theta;
+                    robot_pose.position.x = odom_pose.x;
+                    robot_pose.position.y = odom_pose.y;
+                    robot_pose.position.z = odom_pose.z;
+                    robot_theta = odom_theta;
+                    robot_pose.orientation.w = cos(robot_theta / 2.);
+                    robot_pose.orientation.x = 0.;
+                    robot_pose.orientation.y = 0.;
+                    robot_pose.orientation.z = sin(robot_theta / 2.);
                     break;
                 }
             }
         }
+        // void get_robot_pose()
+        // {
+        //     sub_robot = node.subscribe("/robot_position", 10, &ROBOT_POSITION::callback_robot, this);
+        // }
 };
 
 
@@ -126,56 +213,40 @@ class OBSTACLE_DIST
 {
     private:
         ros::Subscriber sub_dist;
-        // ODOM_POSITION odom_position;
-        float maxdist, mindist;
-        float lidar_pose[2] = {0.2, 0.0};
+        geometry_msgs::Point point;
+        float lidar_pose[2] = {0.0, 0.0};
+        bool start_frag;
         void callback_obstacle(const sensor_msgs::LaserScan &ob)
         {
-            geometry_msgs::Point point;
-            angle.clear();
-            range.clear();
+            // range.clear();
+            ob_theta.clear();
             range_point.clear();
             range_angle_increment = ob.angle_increment;
-            maxdist = ob.range_max;
-            mindist = ob.range_min;
             for (int i=0; i<ob.ranges.size(); i++)
             {
-                if ((mindist <= ob.ranges[i]) && (ob.ranges[i] <= maxdist))
+                if ((ob.range_min <= ob.ranges[i]) && (ob.ranges[i] <= ob.range_max))
                 {
-                    angle.push_back(robot_position.theta + ob.angle_min + range_angle_increment*i);
-                    range.push_back(ob.ranges[i]);
-                    point.x = robot_position.robot_pose.x + (ob.ranges[i]*(cos(robot_position.theta + ob.angle_min + range_angle_increment*i))) + (lidar_pose[0]*cos(robot_position.theta) - lidar_pose[1]*sin(robot_position.theta));
-                    point.y = robot_position.robot_pose.y + (ob.ranges[i]*(sin(robot_position.theta + ob.angle_min + range_angle_increment*i))) + (lidar_pose[0]*sin(robot_position.theta) + lidar_pose[1]*cos(robot_position.theta));
-                    point.z = 0.0;
+                    point.x = robot_position.robot_pose.position.x + (ob.ranges[i]*(cos(robot_position.robot_theta + ob.angle_min + range_angle_increment*i))) + (lidar_pose[0]*cos(robot_position.robot_theta) - lidar_pose[1]*sin(robot_position.robot_theta));
+                    point.y = robot_position.robot_pose.position.y + (ob.ranges[i]*(sin(robot_position.robot_theta + ob.angle_min + range_angle_increment*i))) + (lidar_pose[0]*sin(robot_position.robot_theta) + lidar_pose[1]*cos(robot_position.robot_theta));
+                    point.z = 0.02;
+                    ob_theta.push_back(robot_position.robot_theta + ob.angle_min + range_angle_increment*i);
                     range_point.push_back(point);
-                    // range_point.push_back({robot_position.robot_pose.x + (ob.ranges[i]*(cos(robot_position.theta + ob.angle_min + range_angle_increment*i))) + (lidar_pose[0]*cos(robot_position.theta) - lidar_pose[1]*sin(robot_position.theta)), robot_position.robot_pose.y + (ob.ranges[i]*(sin(robot_position.theta + ob.angle_min + range_angle_increment*i))) + (lidar_pose[0]*sin(robot_position.theta) + lidar_pose[1]*cos(robot_position.theta)), 0.0});
-                    // if (((std::isnan(range_point[i].x)) != true) && ((std::isnan(range_point[i].y)) != true))
-                    // {
-                    //     start_frag = true;
-                    // }
                 }
             }
             start_frag = true;
         }
     public:
         ROBOT_POSITION robot_position;
-        std::vector<float> angle;
-        std::vector<float> range;
-        // std::vector<std::vector<double>> range_point;
+        std::vector<float> ob_theta;
+        // std::vector<float> range;
         std::vector<geometry_msgs::Point> range_point;
-        bool start_frag;
-        float range_angle_increment;
+        // std::vector<std::vector<double>> range_point;
+        // long range_size = std::numeric_limits<int>::max();
+        float range_angle_increment/*, range_max, range_min*/;
         OBSTACLE_DIST()
         {
             ros::NodeHandle node;
             sub_dist = node.subscribe("/scan", 10, &OBSTACLE_DIST::callback_obstacle, this);
-            // odom_position.missed.position.x = 0.0;
-            // odom_position.missed.position.y = 0.0;
-            // odom_position.missed.position.z = 0.0;
-            // odom_position.missed.orientation.w = 0.0;
-            // odom_position.missed.orientation.x = 0.0;
-            // odom_position.missed.orientation.y = 0.0;
-            // odom_position.missed.orientation.z = 0.0;
             get_dist();
         }
         void get_dist()
@@ -190,11 +261,71 @@ class OBSTACLE_DIST
                     ros::spinOnce();
                     break;
                 }
-                ros::spinOnce();
             }
             ros::spinOnce();
         }
 };
+
+
+// class OBSTACLE_DIST
+// {
+//     private:
+//         ros::Subscriber sub_dist;
+//         float maxdist, mindist;
+//         float lidar_pose[2] = {0.0, 0.0};
+//         void callback_obstacle(const sensor_msgs::LaserScan &ob)
+//         {
+//             geometry_msgs::Point point;
+//             angle.clear();
+//             range.clear();
+//             range_point.clear();
+//             range_angle_increment = ob.angle_increment;
+//             maxdist = ob.range_max;
+//             mindist = ob.range_min;
+//             for (int i=0; i<ob.ranges.size(); i++)
+//             {
+//                 if ((mindist <= ob.ranges[i]) && (ob.ranges[i] <= maxdist))
+//                 {
+//                     angle.push_back(robot_position.theta + ob.angle_min + range_angle_increment*i);
+//                     range.push_back(ob.ranges[i]);
+//                     point.x = robot_position.robot_pose.x + (ob.ranges[i]*(cos(robot_position.theta + ob.angle_min + range_angle_increment*i))) + (lidar_pose[0]*cos(robot_position.theta) - lidar_pose[1]*sin(robot_position.theta));
+//                     point.y = robot_position.robot_pose.y + (ob.ranges[i]*(sin(robot_position.theta + ob.angle_min + range_angle_increment*i))) + (lidar_pose[0]*sin(robot_position.theta) + lidar_pose[1]*cos(robot_position.theta));
+//                     point.z = 0.0;
+//                     range_point.push_back(point);
+//                 }
+//             }
+//             start_frag = true;
+//         }
+//     public:
+//         ROBOT_POSITION robot_position;
+//         std::vector<float> angle;
+//         std::vector<float> range;
+//         std::vector<geometry_msgs::Point> range_point;
+//         bool start_frag;
+//         float range_angle_increment;
+//         OBSTACLE_DIST()
+//         {
+//             ros::NodeHandle node;
+//             sub_dist = node.subscribe("/scan", 10, &OBSTACLE_DIST::callback_obstacle, this);
+//             get_dist();
+//         }
+//         void get_dist()
+//         {
+//             start_frag = false;
+//             ros::spinOnce();
+//             while(ros::ok())
+//             {
+//                 ros::spinOnce();
+//                 if (start_frag)
+//                 {
+//                     ros::spinOnce();
+//                     break;
+//                 }
+//                 ros::spinOnce();
+//             }
+//             ros::spinOnce();
+//         }
+// };
 
 
 class SLAM
@@ -204,12 +335,13 @@ class SLAM
         std::string mode;
         ros::Publisher pub_map;
         ros::Publisher pub_robot_position;
+        ros::Subscriber sub_initial;
         GRIDDING gridding;
-        ODOM_POSITION odom_position;
+        // ODOM_POSITION odom_position;
         // ROBOT_POSITION robot_position;
         OBSTACLE_DIST obstacle_dist;
-        geometry_msgs::Point odom_stack_pose;
-        float odom_stack_theta;
+        // geometry_msgs::Point odom_stack_pose;.
+        // float odom_stack_theta;
         navigation_stack::MapInformation map;
         geometry_msgs::Pose robot_position;
         int plot_size;
@@ -221,21 +353,42 @@ class SLAM
         float angular_missed_grid = 0.03490658503988659; // [rad]
         std::vector<int> vector_1d;
         std::vector<std::vector<int>> vector_2d;
-        std::string map_file;
+        std::string map_file_path;
+        void callback_initial(const geometry_msgs::PoseWithCovarianceStamped &initial)
+        {
+            obstacle_dist.robot_position.robot_pose.position.x = initial.pose.pose.position.x;
+            obstacle_dist.robot_position.robot_pose.position.y = initial.pose.pose.position.y;
+            obstacle_dist.robot_position.robot_pose.position.z = initial.pose.pose.position.z;
+            obstacle_dist.robot_position.robot_theta = (2*(acos(initial.pose.pose.orientation.w)))*((initial.pose.pose.orientation.z)*(initial.pose.pose.orientation.w))/(std::fabs((initial.pose.pose.orientation.z)*(initial.pose.pose.orientation.w)));
+            obstacle_dist.robot_position.robot_pose.orientation.w = initial.pose.pose.orientation.w;
+            obstacle_dist.robot_position.robot_pose.orientation.x = initial.pose.pose.orientation.x;
+            obstacle_dist.robot_position.robot_pose.orientation.y = initial.pose.pose.orientation.y;
+            obstacle_dist.robot_position.robot_pose.orientation.z = initial.pose.pose.orientation.z;
+            // odom_pose_stack.x = 0.;
+            // odom_pose_stack.y = 0.;
+            // odom_pose_stack.z = 0.;
+            // odom_theta_stack = 0.;
+            obstacle_dist.robot_position.odom_pose_stack.x = obstacle_dist.robot_position.odom_pose.x;
+            obstacle_dist.robot_position.odom_pose_stack.y = obstacle_dist.robot_position.odom_pose.y;
+            obstacle_dist.robot_position.odom_pose_stack.z = obstacle_dist.robot_position.odom_pose.z;
+            obstacle_dist.robot_position.odom_theta_stack = obstacle_dist.robot_position.odom_theta;
+        }
     public:
         SLAM() : node_h("~")
         {
             ros::NodeHandle node;
             pub_map = node.advertise<navigation_stack::MapInformation>("/mapping", 10);
             pub_robot_position = node.advertise<geometry_msgs::Pose>("/robot_position", 10);
-            plot_size = (int)((sqrt(std::numeric_limits<int>::max()))/3);
+            plot_size = (int)((sqrt(std::numeric_limits<int>::max()))/4);
             zero_point = (int)(plot_size/2);
             vector_1d.resize(plot_size,-1);
             vector_2d.resize(plot_size,vector_1d);
             mode = node_h.param<std::string>( "mode", "NAVIGATION" );
             if (mode == "NAVIGATION")
             {
-                map_file = node_h.param<std::string>( "map_file", "map_file" );
+                map_file_path = node_h.param<std::string>( "map_file", "map_file.yaml" );
+                sub_initial = node.subscribe("/initialpose", 10, &SLAM::callback_initial, this);
+                get_map();
             }
             SLAM_control();
         }
@@ -246,11 +399,11 @@ class SLAM
             limit_point[2] = std::numeric_limits<int>::max();
             limit_point[3] = (std::numeric_limits<int>::max())*(-1);
             ros::spinOnce();
-            if (mode == "NAVIGATION")
-            {
-                // save_file = ros::package::getPath("navigation_stack") + "/map/";
-                get_map();
-            }
+            // if (mode == "NAVIGATION")
+            // {
+            //     // save_file = ros::package::getPath("navigation_stack") + "/map/";
+            //     get_map();
+            // }
             ros::spinOnce();
             float true_diff_x = 0., true_diff_y = 0., true_diff_theta = 0.;
             while (ros::ok())
@@ -259,44 +412,44 @@ class SLAM
                 std::vector<geometry_msgs::Point> range_point_stack;
                 std::vector<float> angle_stack;
                 range_point_stack.resize(obstacle_dist.range_point.size());
-                angle_stack.resize(obstacle_dist.angle.size());
+                angle_stack.resize(obstacle_dist.ob_theta.size());
                 copy(obstacle_dist.range_point.begin(), obstacle_dist.range_point.end(), range_point_stack.begin());
-                copy(obstacle_dist.angle.begin(), obstacle_dist.angle.end(), angle_stack.begin());
+                copy(obstacle_dist.ob_theta.begin(), obstacle_dist.ob_theta.end(), angle_stack.begin());
                 ros::spinOnce();
-                localization(obstacle_dist.robot_position.robot_pose, range_point_stack, angle_stack, odom_position.odom_pose.x - odom_stack_pose.x, odom_position.odom_pose.y - odom_stack_pose.y, odom_position.theta - odom_stack_theta, true_diff_x, true_diff_y, true_diff_theta);
+                localization(obstacle_dist.robot_position.robot_pose.position, range_point_stack, angle_stack, obstacle_dist.robot_position.odom_pose.x - obstacle_dist.robot_position.odom_pose_stack.x, obstacle_dist.robot_position.odom_pose.y - obstacle_dist.robot_position.odom_pose_stack.y, obstacle_dist.robot_position.odom_theta - obstacle_dist.robot_position.odom_theta_stack, true_diff_x, true_diff_y, true_diff_theta);
                 // ROS_INFO("true_diff_x = %.2f",true_diff_x);
-                obstacle_dist.robot_position.robot_pose.x += true_diff_x;
-                obstacle_dist.robot_position.robot_pose.y += true_diff_y;
-                obstacle_dist.robot_position.theta += true_diff_theta;
+                obstacle_dist.robot_position.robot_pose.position.x += true_diff_x;
+                obstacle_dist.robot_position.robot_pose.position.y += true_diff_y;
+                obstacle_dist.robot_position.robot_theta += true_diff_theta;
                 while (ros::ok())
                 {
-                    if (std::fabs(obstacle_dist.robot_position.theta) > M_PI)
+                    if (std::fabs(obstacle_dist.robot_position.robot_theta) > M_PI)
                     {
-                        if (obstacle_dist.robot_position.theta > 0.)
+                        if (obstacle_dist.robot_position.robot_theta > 0.)
                         {
-                            obstacle_dist.robot_position.theta -= 2*M_PI;
+                            obstacle_dist.robot_position.robot_theta -= 2*M_PI;
                         }
                         else
                         {
-                            obstacle_dist.robot_position.theta += 2*M_PI;
+                            obstacle_dist.robot_position.robot_theta += 2*M_PI;
                         }
                     }
-                    if (std::fabs(obstacle_dist.robot_position.theta) <= M_PI)
+                    if (std::fabs(obstacle_dist.robot_position.robot_theta) <= M_PI)
                     {
                         break;
                     }
                 }
                 // ROS_INFO("robot_ = %.2f, %.2f, %.2f\n",obstacle_dist.robot_position.robot_pose.x,obstacle_dist.robot_position.robot_pose.y,obstacle_dist.robot_position.theta);
-                odom_stack_pose.x = odom_position.odom_pose.x;
-                odom_stack_pose.y = odom_position.odom_pose.y;
-                odom_stack_theta = odom_position.theta;
+                obstacle_dist.robot_position.odom_pose_stack.x = obstacle_dist.robot_position.odom_pose.x;
+                obstacle_dist.robot_position.odom_pose_stack.y = obstacle_dist.robot_position.odom_pose.y;
+                obstacle_dist.robot_position.odom_theta_stack = obstacle_dist.robot_position.odom_theta;
                 if (mode == "CREATE")
                 {
-                    mapping(obstacle_dist.robot_position.robot_pose, obstacle_dist.robot_position.theta, range_point_stack, angle_stack);
+                    mapping(obstacle_dist.robot_position.robot_pose.position, obstacle_dist.robot_position.robot_theta, range_point_stack, angle_stack);
                 }
                 else if (mode == "NAVIGATION")
                 {
-                    data_publisher(obstacle_dist.robot_position.robot_pose, obstacle_dist.robot_position.theta);
+                    data_publisher(obstacle_dist.robot_position.robot_pose.position, obstacle_dist.robot_position.robot_theta);
                 }
                 sleep(3);
             }
@@ -374,55 +527,55 @@ class SLAM
                 }
                 if ((((M_PI/4)) < std::fabs(angle[i])) && (std::fabs(angle[i]) < ((3*M_PI/4))))
                 {
-                    for (int j=1; j<((std::fabs(range_point[i].y - obstacle_dist.robot_position.robot_pose.y))/gridding.size); j++)
+                    for (int j=1; j<((std::fabs(range_point[i].y - robot_position.position.y))/gridding.size); j++)
                     {
-                        // if (vector_2d[zero_point + gridding.float_to_int(gridding.float_to_grid(obstacle_dist.robot_position.robot_pose.x + ((j*gridding.size/tan(angle[i]))*((std::fabs(range_point[i].y-obstacle_dist.robot_position.robot_pose.y))/(range_point[i].y-obstacle_dist.robot_position.robot_pose.y)))))][zero_point + gridding.float_to_int(gridding.float_to_grid(obstacle_dist.robot_position.robot_pose.y + ((j*gridding.size                                     )*((std::fabs(range_point[i].y-obstacle_dist.robot_position.robot_pose.y))/(range_point[i].y-obstacle_dist.robot_position.robot_pose.y)))))] != 1)
+                        // if (vector_2d[zero_point + gridding.float_to_int(gridding.float_to_grid(robot_position.position.x + ((j*gridding.size/tan(angle[i]))*((std::fabs(range_point[i].y-robot_position.position.y))/(range_point[i].y-robot_position.position.y)))))][zero_point + gridding.float_to_int(gridding.float_to_grid(robot_position.position.y + ((j*gridding.size                                     )*((std::fabs(range_point[i].y-robot_position.position.y))/(range_point[i].y-robot_position.position.y)))))] != 1)
                         // {
-                        //     vector_2d[zero_point + gridding.float_to_int(gridding.float_to_grid(obstacle_dist.robot_position.robot_pose.x + ((j*gridding.size/tan(angle[i]))*((std::fabs(range_point[i].y-obstacle_dist.robot_position.robot_pose.y))/(range_point[i].y-obstacle_dist.robot_position.robot_pose.y)))))][zero_point + gridding.float_to_int(gridding.float_to_grid(obstacle_dist.robot_position.robot_pose.y + ((j*gridding.size                                     )*((std::fabs(range_point[i].y-obstacle_dist.robot_position.robot_pose.y))/(range_point[i].y-obstacle_dist.robot_position.robot_pose.y)))))] = 0;
+                        //     vector_2d[zero_point + gridding.float_to_int(gridding.float_to_grid(robot_position.position.x + ((j*gridding.size/tan(angle[i]))*((std::fabs(range_point[i].y-robot_position.position.y))/(range_point[i].y-robot_position.position.y)))))][zero_point + gridding.float_to_int(gridding.float_to_grid(robot_position.position.y + ((j*gridding.size                                     )*((std::fabs(range_point[i].y-robot_position.position.y))/(range_point[i].y-robot_position.position.y)))))] = 0;
                         // }
-                        vector_2d[zero_point + gridding.float_to_int(gridding.float_to_grid(obstacle_dist.robot_position.robot_pose.x + ((j*gridding.size/tan(angle[i]))*((std::fabs(range_point[i].y-obstacle_dist.robot_position.robot_pose.y))/(range_point[i].y-obstacle_dist.robot_position.robot_pose.y)))))][zero_point + gridding.float_to_int(gridding.float_to_grid(obstacle_dist.robot_position.robot_pose.y + ((j*gridding.size                                     )*((std::fabs(range_point[i].y-obstacle_dist.robot_position.robot_pose.y))/(range_point[i].y-obstacle_dist.robot_position.robot_pose.y)))))] = 0;
-                        if ((zero_point + gridding.float_to_int(gridding.float_to_grid(obstacle_dist.robot_position.robot_pose.x + ((j*gridding.size/tan(angle[i]))*((std::fabs(range_point[i].y-obstacle_dist.robot_position.robot_pose.y))/(range_point[i].y-obstacle_dist.robot_position.robot_pose.y)))))) < limit_point[0])
+                        vector_2d[zero_point + gridding.float_to_int(gridding.float_to_grid(robot_position.position.x + ((j*gridding.size/tan(angle[i]))*((std::fabs(range_point[i].y-robot_position.position.y))/(range_point[i].y-robot_position.position.y)))))][zero_point + gridding.float_to_int(gridding.float_to_grid(robot_position.position.y + ((j*gridding.size                                     )*((std::fabs(range_point[i].y-robot_position.position.y))/(range_point[i].y-robot_position.position.y)))))] = 0;
+                        if ((zero_point + gridding.float_to_int(gridding.float_to_grid(robot_position.position.x + ((j*gridding.size/tan(angle[i]))*((std::fabs(range_point[i].y-robot_position.position.y))/(range_point[i].y-robot_position.position.y)))))) < limit_point[0])
                         {
-                            limit_point[0] = zero_point + gridding.float_to_int(gridding.float_to_grid(obstacle_dist.robot_position.robot_pose.x + ((j*gridding.size/tan(angle[i]))*((std::fabs(range_point[i].y-obstacle_dist.robot_position.robot_pose.y))/(range_point[i].y-obstacle_dist.robot_position.robot_pose.y)))));
+                            limit_point[0] = zero_point + gridding.float_to_int(gridding.float_to_grid(robot_position.position.x + ((j*gridding.size/tan(angle[i]))*((std::fabs(range_point[i].y-robot_position.position.y))/(range_point[i].y-robot_position.position.y)))));
                         }
-                        if (limit_point[1] < (zero_point + gridding.float_to_int(gridding.float_to_grid(obstacle_dist.robot_position.robot_pose.x + ((j*gridding.size/tan(angle[i]))*((std::fabs(range_point[i].y-obstacle_dist.robot_position.robot_pose.y))/(range_point[i].y-obstacle_dist.robot_position.robot_pose.y)))))))
+                        if (limit_point[1] < (zero_point + gridding.float_to_int(gridding.float_to_grid(robot_position.position.x + ((j*gridding.size/tan(angle[i]))*((std::fabs(range_point[i].y-robot_position.position.y))/(range_point[i].y-robot_position.position.y)))))))
                         {
-                            limit_point[1] = zero_point + gridding.float_to_int(gridding.float_to_grid(obstacle_dist.robot_position.robot_pose.x + ((j*gridding.size/tan(angle[i]))*((std::fabs(range_point[i].y-obstacle_dist.robot_position.robot_pose.y))/(range_point[i].y-obstacle_dist.robot_position.robot_pose.y)))));
+                            limit_point[1] = zero_point + gridding.float_to_int(gridding.float_to_grid(robot_position.position.x + ((j*gridding.size/tan(angle[i]))*((std::fabs(range_point[i].y-robot_position.position.y))/(range_point[i].y-robot_position.position.y)))));
                         }
-                        if ((zero_point + gridding.float_to_int(gridding.float_to_grid(obstacle_dist.robot_position.robot_pose.y + ((j*gridding.size                                     )*((std::fabs(range_point[i].y-obstacle_dist.robot_position.robot_pose.y))/(range_point[i].y-obstacle_dist.robot_position.robot_pose.y)))))) < limit_point[2])
+                        if ((zero_point + gridding.float_to_int(gridding.float_to_grid(robot_position.position.y + ((j*gridding.size                                     )*((std::fabs(range_point[i].y-robot_position.position.y))/(range_point[i].y-robot_position.position.y)))))) < limit_point[2])
                         {
-                            limit_point[2] = zero_point + gridding.float_to_int(gridding.float_to_grid(obstacle_dist.robot_position.robot_pose.y + ((j*gridding.size                                     )*((std::fabs(range_point[i].y-obstacle_dist.robot_position.robot_pose.y))/(range_point[i].y-obstacle_dist.robot_position.robot_pose.y)))));
+                            limit_point[2] = zero_point + gridding.float_to_int(gridding.float_to_grid(robot_position.position.y + ((j*gridding.size                                     )*((std::fabs(range_point[i].y-robot_position.position.y))/(range_point[i].y-robot_position.position.y)))));
                         }
-                        if (limit_point[3] < (zero_point + gridding.float_to_int(gridding.float_to_grid(obstacle_dist.robot_position.robot_pose.y + ((j*gridding.size                                     )*((std::fabs(range_point[i].y-obstacle_dist.robot_position.robot_pose.y))/(range_point[i].y-obstacle_dist.robot_position.robot_pose.y)))))))
+                        if (limit_point[3] < (zero_point + gridding.float_to_int(gridding.float_to_grid(robot_position.position.y + ((j*gridding.size                                     )*((std::fabs(range_point[i].y-robot_position.position.y))/(range_point[i].y-robot_position.position.y)))))))
                         {
-                            limit_point[3] = zero_point + gridding.float_to_int(gridding.float_to_grid(obstacle_dist.robot_position.robot_pose.y + ((j*gridding.size                                     )*((std::fabs(range_point[i].y-obstacle_dist.robot_position.robot_pose.y))/(range_point[i].y-obstacle_dist.robot_position.robot_pose.y)))));
+                            limit_point[3] = zero_point + gridding.float_to_int(gridding.float_to_grid(robot_position.position.y + ((j*gridding.size                                     )*((std::fabs(range_point[i].y-robot_position.position.y))/(range_point[i].y-robot_position.position.y)))));
                         }
                     }
                 }
                 else
                 {
-                    for (int j=1; j<((std::fabs(range_point[i].x - obstacle_dist.robot_position.robot_pose.x))/gridding.size); j++)
+                    for (int j=1; j<((std::fabs(range_point[i].x - robot_position.position.x))/gridding.size); j++)
                     {
-                        // if (vector_2d[zero_point + gridding.float_to_int(gridding.float_to_grid(obstacle_dist.robot_position.robot_pose.x + ((j*gridding.size                                     )*((std::fabs(range_point[i].x-obstacle_dist.robot_position.robot_pose.x))/(range_point[i].x-obstacle_dist.robot_position.robot_pose.x)))))][zero_point + gridding.float_to_int(gridding.float_to_grid(obstacle_dist.robot_position.robot_pose.y + ((j*gridding.size*tan(angle[i]))*((std::fabs(range_point[i].x-obstacle_dist.robot_position.robot_pose.x))/(range_point[i].x-obstacle_dist.robot_position.robot_pose.x)))))] != 1)
+                        // if (vector_2d[zero_point + gridding.float_to_int(gridding.float_to_grid(robot_position.position.x + ((j*gridding.size                                     )*((std::fabs(range_point[i].x-robot_position.position.x))/(range_point[i].x-robot_position.position.x)))))][zero_point + gridding.float_to_int(gridding.float_to_grid(robot_position.position.y + ((j*gridding.size*tan(angle[i]))*((std::fabs(range_point[i].x-robot_position.position.x))/(range_point[i].x-robot_position.position.x)))))] != 1)
                         // {
-                        //     vector_2d[zero_point + gridding.float_to_int(gridding.float_to_grid(obstacle_dist.robot_position.robot_pose.x + ((j*gridding.size                                     )*((std::fabs(range_point[i].x-obstacle_dist.robot_position.robot_pose.x))/(range_point[i].x-obstacle_dist.robot_position.robot_pose.x)))))][zero_point + gridding.float_to_int(gridding.float_to_grid(obstacle_dist.robot_position.robot_pose.y + ((j*gridding.size*tan(angle[i]))*((std::fabs(range_point[i].x-obstacle_dist.robot_position.robot_pose.x))/(range_point[i].x-obstacle_dist.robot_position.robot_pose.x)))))] = 0;
+                        //     vector_2d[zero_point + gridding.float_to_int(gridding.float_to_grid(robot_position.position.x + ((j*gridding.size                                     )*((std::fabs(range_point[i].x-robot_position.position.x))/(range_point[i].x-robot_position.position.x)))))][zero_point + gridding.float_to_int(gridding.float_to_grid(robot_position.position.y + ((j*gridding.size*tan(angle[i]))*((std::fabs(range_point[i].x-robot_position.position.x))/(range_point[i].x-robot_position.position.x)))))] = 0;
                         // }
-                        vector_2d[zero_point + gridding.float_to_int(gridding.float_to_grid(obstacle_dist.robot_position.robot_pose.x + ((j*gridding.size                                     )*((std::fabs(range_point[i].x-obstacle_dist.robot_position.robot_pose.x))/(range_point[i].x-obstacle_dist.robot_position.robot_pose.x)))))][zero_point + gridding.float_to_int(gridding.float_to_grid(obstacle_dist.robot_position.robot_pose.y + ((j*gridding.size*tan(angle[i]))*((std::fabs(range_point[i].x-obstacle_dist.robot_position.robot_pose.x))/(range_point[i].x-obstacle_dist.robot_position.robot_pose.x)))))] = 0;
-                        if ((zero_point + gridding.float_to_int(gridding.float_to_grid(obstacle_dist.robot_position.robot_pose.x + ((j*gridding.size                                     )*((std::fabs(range_point[i].x-obstacle_dist.robot_position.robot_pose.x))/(range_point[i].x-obstacle_dist.robot_position.robot_pose.x)))))) < limit_point[0])
+                        vector_2d[zero_point + gridding.float_to_int(gridding.float_to_grid(robot_position.position.x + ((j*gridding.size                                     )*((std::fabs(range_point[i].x-robot_position.position.x))/(range_point[i].x-robot_position.position.x)))))][zero_point + gridding.float_to_int(gridding.float_to_grid(robot_position.position.y + ((j*gridding.size*tan(angle[i]))*((std::fabs(range_point[i].x-robot_position.position.x))/(range_point[i].x-robot_position.position.x)))))] = 0;
+                        if ((zero_point + gridding.float_to_int(gridding.float_to_grid(robot_position.position.x + ((j*gridding.size                                     )*((std::fabs(range_point[i].x-robot_position.position.x))/(range_point[i].x-robot_position.position.x)))))) < limit_point[0])
                         {
-                            limit_point[0] = zero_point + gridding.float_to_int(gridding.float_to_grid(obstacle_dist.robot_position.robot_pose.x + ((j*gridding.size                                     )*((std::fabs(range_point[i].x-obstacle_dist.robot_position.robot_pose.x))/(range_point[i].x-obstacle_dist.robot_position.robot_pose.x)))));
+                            limit_point[0] = zero_point + gridding.float_to_int(gridding.float_to_grid(robot_position.position.x + ((j*gridding.size                                     )*((std::fabs(range_point[i].x-robot_position.position.x))/(range_point[i].x-robot_position.position.x)))));
                         }
-                        if (limit_point[1] < (zero_point + gridding.float_to_int(gridding.float_to_grid(obstacle_dist.robot_position.robot_pose.x + ((j*gridding.size                                     )*((std::fabs(range_point[i].x-obstacle_dist.robot_position.robot_pose.x))/(range_point[i].x-obstacle_dist.robot_position.robot_pose.x)))))))
+                        if (limit_point[1] < (zero_point + gridding.float_to_int(gridding.float_to_grid(robot_position.position.x + ((j*gridding.size                                     )*((std::fabs(range_point[i].x-robot_position.position.x))/(range_point[i].x-robot_position.position.x)))))))
                         {
-                            limit_point[1] = zero_point + gridding.float_to_int(gridding.float_to_grid(obstacle_dist.robot_position.robot_pose.x + ((j*gridding.size                                     )*((std::fabs(range_point[i].x-obstacle_dist.robot_position.robot_pose.x))/(range_point[i].x-obstacle_dist.robot_position.robot_pose.x)))));
+                            limit_point[1] = zero_point + gridding.float_to_int(gridding.float_to_grid(robot_position.position.x + ((j*gridding.size                                     )*((std::fabs(range_point[i].x-robot_position.position.x))/(range_point[i].x-robot_position.position.x)))));
                         }
-                        if ((zero_point + gridding.float_to_int(gridding.float_to_grid(obstacle_dist.robot_position.robot_pose.y + ((j*gridding.size*tan(angle[i]))*((std::fabs(range_point[i].x-obstacle_dist.robot_position.robot_pose.x))/(range_point[i].x-obstacle_dist.robot_position.robot_pose.x)))))) < limit_point[2])
+                        if ((zero_point + gridding.float_to_int(gridding.float_to_grid(robot_position.position.y + ((j*gridding.size*tan(angle[i]))*((std::fabs(range_point[i].x-robot_position.position.x))/(range_point[i].x-robot_position.position.x)))))) < limit_point[2])
                         {
-                            limit_point[2] = zero_point + gridding.float_to_int(gridding.float_to_grid(obstacle_dist.robot_position.robot_pose.y + ((j*gridding.size*tan(angle[i]))*((std::fabs(range_point[i].x-obstacle_dist.robot_position.robot_pose.x))/(range_point[i].x-obstacle_dist.robot_position.robot_pose.x)))));
+                            limit_point[2] = zero_point + gridding.float_to_int(gridding.float_to_grid(robot_position.position.y + ((j*gridding.size*tan(angle[i]))*((std::fabs(range_point[i].x-robot_position.position.x))/(range_point[i].x-robot_position.position.x)))));
                         }
-                        if (limit_point[3] < (zero_point + gridding.float_to_int(gridding.float_to_grid(obstacle_dist.robot_position.robot_pose.y + ((j*gridding.size*tan(angle[i]))*((std::fabs(range_point[i].x-obstacle_dist.robot_position.robot_pose.x))/(range_point[i].x-obstacle_dist.robot_position.robot_pose.x)))))))
+                        if (limit_point[3] < (zero_point + gridding.float_to_int(gridding.float_to_grid(robot_position.position.y + ((j*gridding.size*tan(angle[i]))*((std::fabs(range_point[i].x-robot_position.position.x))/(range_point[i].x-robot_position.position.x)))))))
                         {
-                            limit_point[3] = zero_point + gridding.float_to_int(gridding.float_to_grid(obstacle_dist.robot_position.robot_pose.y + ((j*gridding.size*tan(angle[i]))*((std::fabs(range_point[i].x-obstacle_dist.robot_position.robot_pose.x))/(range_point[i].x-obstacle_dist.robot_position.robot_pose.x)))));
+                            limit_point[3] = zero_point + gridding.float_to_int(gridding.float_to_grid(robot_position.position.y + ((j*gridding.size*tan(angle[i]))*((std::fabs(range_point[i].x-robot_position.position.x))/(range_point[i].x-robot_position.position.x)))));
                         }
                     }
                 }
@@ -475,7 +628,48 @@ class SLAM
             ros::spinOnce();
         }
         void get_map()
-        {}
+        {
+            std::ifstream file(map_file_path);
+            if (file.is_open())
+            {
+                YAML::Node yaml_data;
+                yaml_data = YAML::LoadFile(map_file_path);
+                // YAMLからデータを抽出する
+                try
+                {
+                    const YAML::Node& yaml_positions_set_cost = yaml_data["map_data"]["cost"];
+                    const YAML::Node& yaml_positions_set_clearly = yaml_data["map_data"]["clearly"];
+                    for (int i=0; i<yaml_positions_set_cost.size(); i++)
+                    {
+                        geometry_msgs::Vector3 vec;
+                        vec.x = yaml_positions_set_cost[i]["x"].as<float>();
+                        vec.y = yaml_positions_set_cost[i]["y"].as<float>();
+                        vec.z = 0.0;
+                        map.cost.push_back(vec);
+                    }
+                    for (int i=0; i<yaml_positions_set_clearly.size(); i++)
+                    {
+                        geometry_msgs::Vector3 vec;
+                        vec.x = yaml_positions_set_clearly[i]["x"].as<float>();
+                        vec.y = yaml_positions_set_clearly[i]["y"].as<float>();
+                        vec.z = 0.0;
+                        map.clearly.push_back(vec);
+                    }
+                }
+                catch (const YAML::Exception& e)
+                {
+                    printf("\x1b[31m\n%s file is no type...\n\x1b[0m",map_file_path.c_str());
+                    ros::spinOnce();
+                    ros::spin();
+                }
+            }
+            else
+            {
+                printf("\x1b[31m\nFailed to open file: %s\n\x1b[0m",map_file_path.c_str());
+                ros::spinOnce();
+                ros::spin();
+            }
+        }
 };
 
 
