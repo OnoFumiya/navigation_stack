@@ -68,7 +68,7 @@ struct NODE
     float heuristic_cost = std::numeric_limits<float>::max();
     float sum_cost = std::numeric_limits<float>::max();
     bool open_node = false;
-    bool search_end = false;
+    // bool search_end = false;
     int px;
     int py;
 };
@@ -152,13 +152,14 @@ class TEST
             node.heuristic_cost = euclidean_distance(gridding.int_to_grid(node.x - zero_point), gridding.int_to_grid(node.y - zero_point), gridding.float_to_grid(goal_position.x), gridding.float_to_grid(goal_position.y));
             node.sum_cost = node.goal_cost + node.heuristic_cost;
             node.open_node = true;
-            nodd.search_end = false;
+            // nodd.search_end = false;
             node.px = node.x;
             node.py = node.y;
             node_vector.push_back(node);
             int limit_point[4] = {zero_point + gridding.float_to_int(gridding.float_to_grid(init_position.x)), zero_point + gridding.float_to_int(gridding.float_to_grid(init_position.x)), zero_point + gridding.float_to_int(gridding.float_to_grid(init_position.y)), zero_point + gridding.float_to_int(gridding.float_to_grid(init_position.y))};
             while (ros::ok())
             {
+                bool end_flag = false;
                 // float min_sum_cost = std::numeric_limits<float>::max();
                 int select_index = -1;
                 for (int i=0; i<node_vector.size(); i++)
@@ -167,6 +168,10 @@ class TEST
                     {
                         select_index = select_node(select_index, i, node_vector[select_index], node_vector[i]);
                     }
+                }
+                if (select_index == -1)
+                {
+                    return false;
                 }
                 for (int i=-1; i<=1; i++)
                 {
@@ -194,11 +199,56 @@ class TEST
                             {
                                 if (((map_cost_global[node_vector[select_index].x + i][node_vector[select_index].y + j] == 0) || ((map_cost_global[node_vector[select_index].x + i][node_vector[select_index].y + j] == -1) && (unknown_grid_path))) && (map_cost_local[node_vector[select_index].x + i][node_vector[select_index].y + j] != 1))
                                 {
-                                    node_open(node_vector[select_index].x + i, node_vector[select_index].y + j, node_vector[select_index], node);
+                                    end_flag = node_open(node_vector[select_index].x + i, node_vector[select_index].y + j, node_vector[select_index], node, goal_position);
+                                    node_vector.push_back(node);
+                                    if (end_flag)
+                                    {
+                                        break;
+                                    }
                                 }
                             }
                         }
+                        if (end_flag)
+                        {
+                            break;
+                        }
                     }
+                    if (end_flag)
+                    {
+                        break;
+                    }
+                }
+                if (end_flag)
+                {
+                    break;
+                }
+            }
+            geometry_msgs::Vector3 vec;
+            int parent_node_x;
+            int parent_node_y;
+            vec.x = gridding.int_to_grid(node_vector[node_vector.size() - 1].x - zero_point);
+            vec.y = gridding.int_to_grid(node_vector[node_vector.size() - 1].y - zero_point);
+            vec.z = 0.;
+            parent_node_x = node_vector[node_vector.size() - 1].px;
+            parent_node_y = node_vector[node_vector.size() - 1].py;
+            global_path.poses.insert(global_path.poses.begin(), vec);
+            while (ros::ok())
+            {
+                int select_index;
+                for (i=0; i<node_vector.size(); i++)
+                {
+                    if ((parent_node_x == node_vector[i].x) && (parent_node_y == node_vector[i].y))
+                    {
+                        vec.x = gridding.int_to_grid(node_vector[i].x - zero_point);
+                        vec.y = gridding.int_to_grid(node_vector[i].y - zero_point);
+                        global_path.poses.insert(global_path.poses.begin(), vec);
+                        select_index = i;
+                        break;
+                    }
+                }
+                if (select_index == 0)
+                {
+                    break;
                 }
             }
             return true;
@@ -289,12 +339,21 @@ class TEST
             }
             return i1;
         }
-        void node_open(int x, int y, NODE node_before, NODE &node)
+        bool node_open(int x, int y, NODE node_before, NODE &node, geometry_msgs::Point gp)
         {
-            // node_open(node_vector[select_index].x + i, node_vector[select_index].y + j, node_vector[select_index], node);
             node.x = x;
             node.y = y;
-            node.goal_cost
+            node.goal_cost = node_before.goal_cost + euclidean_distance(gridding.int_to_grid(node_before.x - zero_point), gridding.int_to_grid(node_before.y - zero_point), gridding.int_to_grid(node.x - zero_point), gridding.int_to_grid(node.y - zero_point));
+            node.heuristic_cost = euclidean_distance(gridding.int_to_grid(node.x - zero_point), gridding.int_to_grid(node.y - zero_point), gridding.float_to_grid(gp.x), gridding.float_to_grid(gp.y));
+            node.sum_cost = node.goal_cost + node.heuristic_cost;
+            node.open_node = true;
+            node.px = node_before.x;
+            node.py = node_before.y;
+            if (euclidean_distance(gridding.int_to_grid(node.x - zero_point), gridding.int_to_grid(node.y - zero_point), gridding.float_to_grid(gp.x), gridding.float_to_grid(gp.y)) < gridding.size)
+            {
+                return true;
+            }
+            return false;
         }
 };
 
