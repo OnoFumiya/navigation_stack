@@ -7,6 +7,7 @@
 #include <geometry_msgs/Vector3.h>
 #include <geometry_msgs/Pose.h>
 #include <geometry_msgs/Point.h>
+#include <geometry_msgs/PoseWithCovarianceStamped.h>
 #include <nav_msgs/Odometry.h>
 #include <sensor_msgs/LaserScan.h>
 #include <std_msgs/Bool.h>
@@ -156,7 +157,7 @@ class TEST
             node.px = node.x;
             node.py = node.y;
             node_vector.push_back(node);
-            int limit_point[4] = {zero_point + gridding.float_to_int(gridding.float_to_grid(init_position.x)), zero_point + gridding.float_to_int(gridding.float_to_grid(init_position.x)), zero_point + gridding.float_to_int(gridding.float_to_grid(init_position.y)), zero_point + gridding.float_to_int(gridding.float_to_grid(init_position.y))};
+            // int limit_point[4] = {zero_point + gridding.float_to_int(gridding.float_to_grid(init_position.x)), zero_point + gridding.float_to_int(gridding.float_to_grid(init_position.x)), zero_point + gridding.float_to_int(gridding.float_to_grid(init_position.y)), zero_point + gridding.float_to_int(gridding.float_to_grid(init_position.y))};
             while (ros::ok())
             {
                 bool end_flag = false;
@@ -175,42 +176,32 @@ class TEST
                 }
                 for (int i=-1; i<=1; i++)
                 {
-                    if ((node_vector[select_index].x + i) < limit_point[0])
+                    if ((0 <= (node_vector[select_index].x + i)) && ((node_vector[select_index].x + i) < plot_size))
                     {
-                        limit_point[0] = node_vector[select_index].x + i;
-                    }
-                    if (limit_point[1] < (node_vector[select_index].x + i))
-                    {
-                        limit_point[1] = node_vector[select_index].x + i;
-                    }
-                    for (int j=-1; j<=1; j++)
-                    {
-                        if ((node_vector[select_index].y + j) < limit_point[2])
+                        for (int j=-1; j<=1; j++)
                         {
-                            limit_point[2] = node_vector[select_index].y + j;
-                        }
-                        if (limit_point[3] < (node_vector[select_index].y + j))
-                        {
-                            limit_point[3] = node_vector[select_index].y + j;
-                        }
-                        if ((i!=0) || (j!=0))
-                        {
-                            if ((global_path_node_searches) || ((i==0) || (j==0)))
+                            if ((0 <= (node_vector[select_index].y + j)) && ((node_vector[select_index].y + j) < plot_size))
                             {
-                                if (((map_cost_global[node_vector[select_index].x + i][node_vector[select_index].y + j] == 0) || ((map_cost_global[node_vector[select_index].x + i][node_vector[select_index].y + j] == -1) && (unknown_grid_path))) && (map_cost_local[node_vector[select_index].x + i][node_vector[select_index].y + j] != 1))
+                                if ((i!=0) || (j!=0))
                                 {
-                                    end_flag = node_open(node_vector[select_index].x + i, node_vector[select_index].y + j, node_vector[select_index], node, goal_position);
-                                    node_vector.push_back(node);
-                                    if (end_flag)
+                                    if ((global_path_node_searches) || ((i==0) || (j==0)))
                                     {
-                                        break;
+                                        if (((map_cost_global[node_vector[select_index].x + i][node_vector[select_index].y + j] == 0) || ((map_cost_global[node_vector[select_index].x + i][node_vector[select_index].y + j] == -1) && (unknown_grid_path))) && (map_cost_local[node_vector[select_index].x + i][node_vector[select_index].y + j] != 1))
+                                        {
+                                            end_flag = node_open(node_vector[select_index].x + i, node_vector[select_index].y + j, node_vector[select_index], node, goal_position);
+                                            node_vector.push_back(node);
+                                            if (end_flag)
+                                            {
+                                                break;
+                                            }
+                                        }
                                     }
                                 }
+                                if (end_flag)
+                                {
+                                    break;
+                                }
                             }
-                        }
-                        if (end_flag)
-                        {
-                            break;
                         }
                     }
                     if (end_flag)
@@ -235,7 +226,7 @@ class TEST
             while (ros::ok())
             {
                 int select_index;
-                for (i=0; i<node_vector.size(); i++)
+                for (int i=0; i<node_vector.size(); i++)
                 {
                     if ((parent_node_x == node_vector[i].x) && (parent_node_y == node_vector[i].y))
                     {
@@ -330,7 +321,7 @@ class TEST
                 }
                 else
                 {
-                    return i2
+                    return i2;
                 }
             }
             else
@@ -361,6 +352,9 @@ class TEST
 int main(int argc, char **argv)
 {
     ros::init(argc, argv, "cpp_lecture");
+    TEST test;
+    ROS_INFO("A_STAR is okay");
+    printf("\n");
     ros::spinOnce();
     ros::spin();
 }
