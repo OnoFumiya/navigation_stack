@@ -4,6 +4,7 @@
 #include <std_msgs/Bool.h>
 #include <geometry_msgs/Twist.h>
 #include <geometry_msgs/Vector3.h>
+#include <geometry_msgs/PoseStamped.h>
 #include <nav_msgs/Odometry.h>
 #include <sensor_msgs/LaserScan.h>
 #include <vector>
@@ -16,7 +17,7 @@
 #include <matplotlib-cpp/matplotlibcpp.h>
 #include <navigation_stack/MapInformation.h>
 #include <navigation_stack/ExpansionPoints.h>
-
+#include <navigation_stack/PathPoint.h>
 
 
 class GRIDDING
@@ -24,7 +25,7 @@ class GRIDDING
     public:
         float size = 0.1;
         float arg_size = 1/size;
-        float float_to_grid(float s, bool f=true)
+        float float_to_grid(float s, bool f=true)  // 適当な値をgrid幅に矯正する関数
         {
             float r = s - (((float)(s/size) - (int)(s/size))*size);
             if ((s<0) && (f))
@@ -34,7 +35,7 @@ class GRIDDING
             r += (size/2);
             return r;
         }
-        int float_to_int(float s, bool f=true)
+        int float_to_int(float s, bool f=true)  // grid幅の値を0を基準にした格納番号(int型)に変換する関数
         {
             int r = s*arg_size;
             if ((s<0) && (f))
@@ -43,9 +44,9 @@ class GRIDDING
             }
             return r;
         }
-        float int_to_grid(int s)
+        float int_to_grid(int s)  // float_to_intの逆をする
         {
-            return (float)((s/arg_size) + (1/(2*arg_size)));
+            return (float)((s/arg_size) + (size/2.0));
         }
 };
 
@@ -70,14 +71,6 @@ class ROBOT_POSITION
             {
                 odom_theta = (2*M_PI - std::fabs(odom_theta))*(((odom.pose.pose.orientation.z)*(odom.pose.pose.orientation.w))/(std::fabs((odom.pose.pose.orientation.z)*(odom.pose.pose.orientation.w))));
             }
-            // position_x = odom.pose.pose.position.x + missed.position.x;
-            // position_y = odom.pose.pose.position.y + missed.position.y;
-            // position_z = odom.pose.pose.position.z + missed.position.z;
-            // theta = (2*(acos(odom.pose.pose.orientation.w + missed.orientation.w)))*((odom.pose.pose.orientation.z + missed.orientation.z)*(odom.pose.pose.orientation.w + missed.orientation.w))/(std::fabs((odom.pose.pose.orientation.z + missed.orientation.z)*(odom.pose.pose.orientation.w + missed.orientation.w)));
-            // if ((std::fabs(theta)) > M_PI)
-            // {
-            //     theta = (2*M_PI - std::fabs(theta))*(((odom.pose.pose.orientation.z + missed.orientation.z)*(odom.pose.pose.orientation.w + missed.orientation.w))/(std::fabs((odom.pose.pose.orientation.z + missed.orientation.z)*(odom.pose.pose.orientation.w + missed.orientation.w))));
-            // }
         }
         void callback_robot(const geometry_msgs::Pose &robot)
         {
@@ -102,9 +95,6 @@ class ROBOT_POSITION
         float odom_theta = 0.0;
         geometry_msgs::Point odom_pose_stack;
         float odom_theta_stack = 0.0;
-        // geometry_msgs::Pose missed;
-        // float position_x = 100.0, position_y = 100.0, position_z = 0.0, theta;
-        float theta;
         ROBOT_POSITION()
         {
             ros::NodeHandle node;
@@ -127,6 +117,10 @@ class ROBOT_POSITION
                 ros::spinOnce();
                 if (f)
                 {
+                    odom_pose_stack.x = odom_pose.x;
+                    odom_pose_stack.y = odom_pose.y;
+                    odom_pose_stack.z = odom_pose.z;
+                    odom_theta_stack = odom_theta;
                     break;
                 }
             }
@@ -163,11 +157,8 @@ class OBSTACLE_DIST
     public:
         ROBOT_POSITION robot_position;
         std::vector<float> ob_theta;
-        // std::vector<float> range;
         std::vector<geometry_msgs::Point> range_point;
-        // std::vector<std::vector<double>> range_point;
-        // long range_size = std::numeric_limits<int>::max();
-        float range_angle_increment/*, range_max, range_min*/;
+        float range_angle_increment;
         OBSTACLE_DIST()
         {
             ros::NodeHandle node;
@@ -273,89 +264,175 @@ class MOVE_CLASS
 };
 
 
-class PATH_PLANNING
+// class PATH_PLANNING
+// {
+//     private:
+//         OBSTACLE_DIST obstacle_dist;
+//         ros::Publisher pub_local_path;
+//         ros::Subscriber sub_map;
+//         navigation_stack::MapInformation map;
+//         bool map_set_frag;
+//         geometry_msgs::Pose goal_pose;
+//         void callback_map(const navigation_stack::MapInformation &get_map)
+//         {
+//             map.cost.clear();
+//             map.clearly.clear();
+//             for (int i=0; i<get_map.cost.size(); i++)
+//             {
+//                 map.cost.push_back(get_map.cost[i]);
+//             }
+//             for (int i=0; i<get_map.clearly.size(); i++)
+//             {
+//                 map.clearly.push_back(get_map.clearly[i]);
+//             }
+//             map_set_frag = true;
+//         }
+//     public:
+//         PATH_PLANNING()
+//         {
+//             ros::NodeHandle node;
+//             pub_local_path = node.advertise<navigation_stack::MapInformation>("/local_path_planning", 10);
+//             sub_map = node.subscribe("/mapping", 10, &PATH_PLANNING::callback_map, this);
+//         }
+//         void wait_map()
+//         {
+//             ros::spinOnce();
+//             while (ros::ok())
+//             {
+//                 ros::spinOnce();
+//                 if (map_set_frag)
+//                 {
+//                     ros::spinOnce();
+//                     break;
+//                 }
+//             }
+//             ros::spinOnce();
+//         }
+//         void path_plan()
+//         {
+//             goal_pose.position.x = 2;
+//             goal_pose.position.y = 3;
+//             goal_pose.position.z = 0.0;
+//             goal_pose.orientation.w = 1.0;
+//             goal_pose.orientation.x = 0.0;
+//             goal_pose.orientation.y = 0.0;
+//             goal_pose.orientation.z = 0.0;
+//             std::vector<geometry_msgs::Point> global_path;
+//             bool goal_flag = false;
+//             while (ros::ok())
+//             {
+//                 geometry_msgs::Point robot_point;
+//                 geometry_msgs::Point goal_point;
+//                 robot_point.x = obstacle_dist.robot_position.robot_pose.position.x;
+//                 robot_point.y = obstacle_dist.robot_position.robot_pose.position.y;
+//                 robot_point.z = obstacle_dist.robot_position.robot_pose.position.z;
+//                 goal_flag = global_path_planning(global_path);
+//                 ros::spinOnce();
+//                 if (goal_flag)
+//                 {
+//                     ros::spinOnce();
+//                     break;
+//                 }
+//             }
+//         }
+//         bool global_path_planning(std::vector<geometry_msgs::Point> &global_path)
+//         {
+//             global_path.clear();
+//             return true;
+//         }
+//         // void 
+// };
+
+
+class PATH_MOVING
 {
     private:
         OBSTACLE_DIST obstacle_dist;
         ros::Publisher pub_local_path;
-        ros::Subscriber sub_map;
-        navigation_stack::MapInformation map;
-        bool map_set_frag;
+        ros::Subscriber sub_globalpath;
+        navigation_stack::PathPoint global_path;
+        std_msgs::Bool end_flag;
         geometry_msgs::Pose goal_pose;
-        void callback_map(const navigation_stack::MapInformation &get_map)
+        void callback_globalpath(const navigation_stack::PathPoint &get_path)
         {
-            map.cost.clear();
-            map.clearly.clear();
-            for (int i=0; i<get_map.cost.size(); i++)
+            global_path.poses.clear();
+            geometry_msgs::Vector3 vec;
+            vec.z = 0.;
+            for (int i=0; i<get_path.poses.size(); i++)
             {
-                map.cost.push_back(get_map.cost[i]);
+                vec.x = get_path.poses[i].x;
+                vec.y = get_path.poses[i].y;
+                global_path.poses.push_back(vec);
             }
-            for (int i=0; i<get_map.clearly.size(); i++)
-            {
-                map.clearly.push_back(get_map.clearly[i]);
-            }
-            map_set_frag = true;
+            end_flag.data = false;
         }
     public:
-        PATH_PLANNING()
+        PATH_MOVING()
         {
             ros::NodeHandle node;
-            pub_local_path = node.advertise<navigation_stack::MapInformation>("/local_path_planning", 10);
-            sub_map = node.subscribe("/mapping", 10, &PATH_PLANNING::callback_map, this);
+            pub_local_path = node.advertise<navigation_stack::PathPoint>("/local_path_planning", 10);
+            sub_globalpath = node.subscribe("/global_path_planning", 10, &PATH_MOVING::callback_globalpath, this);
         }
-        void wait_map()
+        void move_control()
         {
             ros::spinOnce();
+            end_flag.data = true;
             while (ros::ok())
             {
                 ros::spinOnce();
-                if (map_set_frag)
+                if (end_flag.data == true)
                 {
                     ros::spinOnce();
-                    break;
+                    continue;
+                }
+                else
+                {
+                    ros::spinOnce();
+                    path_plan();
                 }
             }
             ros::spinOnce();
         }
         void path_plan()
         {
-            goal_pose.position.x = 2;
-            goal_pose.position.y = 3;
-            goal_pose.position.z = 0.0;
-            goal_pose.orientation.w = 1.0;
-            goal_pose.orientation.x = 0.0;
-            goal_pose.orientation.y = 0.0;
-            goal_pose.orientation.z = 0.0;
-            std::vector<geometry_msgs::Point> global_path;
+            MOVE_CLASS move_class;
             bool goal_flag = false;
+            float min_dist = std::numeric_limits<float>::max();
+            int index = -1;
+            for (int i=0; i<global_path.poses.size(); i++)
+            {
+                if (euclidean_distance(obstacle_dist.robot_position.robot_pose.position.x, obstacle_dist.robot_position.robot_pose.position.y, global_path.poses[i].x, global_path.poses[i].y) < min_dist)
+                {
+                    min_dist = euclidean_distance(obstacle_dist.robot_position.robot_pose.position.x, obstacle_dist.robot_position.robot_pose.position.y, global_path.poses[i].x, global_path.poses[i].y);
+                    index = i;
+                }
+            }
+            if (index == -1)
+            {
+                ROS_ERROR("MOVE ERROR\n");
+                return;
+            }
             while (ros::ok())
             {
-                geometry_msgs::Point robot_point;
-                geometry_msgs::Point goal_point;
-                robot_point.x = obstacle_dist.robot_position.robot_pose.position.x;
-                robot_point.y = obstacle_dist.robot_position.robot_pose.position.y;
-                robot_point.z = obstacle_dist.robot_position.robot_pose.position.z;
-                goal_flag = global_path_planning(global_path);
-                ros::spinOnce();
                 if (goal_flag)
                 {
-                    ros::spinOnce();
-                    break;
+                    ROS_INFO("Goal Reached...\n");
+                    path_set_frag = false;
+                    end_flag.data = true;
+                    return;
                 }
             }
         }
-        bool global_path_planning(std::vector<geometry_msgs::Point> &global_path)
+        float euclidean_distance(float x0, float y0, float x1, float y1)
         {
-            global_path.clear();
-            return true;
+            return (sqrtf(powf((x1 - x0), 2.) + powf((y1 - y0), 2.)));
         }
-        // void 
 };
 
 
 int main(int argc, char **argv)
 {
     ros::init(argc, argv, "navigation_local_path");
-    PATH_PLANNING path_planning;
+    PATH_MOVING path_moving;
     ros::spin();
 }

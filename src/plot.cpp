@@ -48,7 +48,7 @@ class GRIDDING
         }
         float int_to_grid(int s)  // float_to_intの逆をする
         {
-            return (float)((s/arg_size) + (size/2.0)*(s/std::fabs(s)));
+            return (float)((s/arg_size) + (size/2.0));
         }
 };
 
@@ -371,8 +371,6 @@ class PLOT
             robot_color.r = 0.0;
             robot_color.g = 0.0;
             robot_color.b = 1.0;
-            struct timeval t;
-            long sec_0, sec;
             pt.z = 0;
             rgb.a = 1.0;
             while (ros::ok())
@@ -450,7 +448,7 @@ class PLOT
                 }
                 if (globalpath_frag)
                 {
-                    rgb.r = 1.0;
+                    rgb.r = 0.0;
                     rgb.g = 1.0;
                     rgb.b = 0.0;
                     globalpath_colors.resize(globalpath_pose.size(),rgb);

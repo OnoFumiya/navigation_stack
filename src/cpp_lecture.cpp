@@ -56,7 +56,7 @@ class GRIDDING
         }
         float int_to_grid(int s)  // float_to_intの逆をする
         {
-            return (float)((s/arg_size) + (size/2.0)*(s/std::fabs(s)));
+            return (float)((s/arg_size) + (size/2.0));
         }
 };
 
@@ -140,6 +140,18 @@ class TEST
             // ~---
             navigation_stack::PathPoint global_path;
             bool path_flag = global_path_planning(robot_position.position, goal_pose.position, global_path);
+            if (path_flag)
+            {
+                ROS_INFO("global_path\n");
+                for (int i=0; i<global_path.poses.size(); i++)
+                {
+                    printf("%.2f\t%.2f\n",global_path.poses[i].x,global_path.poses[i].y);
+                }
+            }
+            else
+            {
+                ROS_ERROR("No Path...\n");
+            }
         }
         bool global_path_planning(geometry_msgs::Point init_position, geometry_msgs::Point goal_position, navigation_stack::PathPoint &global_path)
         {
@@ -148,30 +160,34 @@ class TEST
             NODE node;
             node.x = zero_point + gridding.float_to_int(gridding.float_to_grid(init_position.x));
             node.y = zero_point + gridding.float_to_int(gridding.float_to_grid(init_position.y));
-            // node.goal_cost = euclidean_distance(x0, y0, x1, y1);
             node.goal_cost = 0.;
             node.heuristic_cost = euclidean_distance(gridding.int_to_grid(node.x - zero_point), gridding.int_to_grid(node.y - zero_point), gridding.float_to_grid(goal_position.x), gridding.float_to_grid(goal_position.y));
             node.sum_cost = node.goal_cost + node.heuristic_cost;
             node.open_node = true;
-            // nodd.search_end = false;
             node.px = node.x;
             node.py = node.y;
             node_vector.push_back(node);
-            // int limit_point[4] = {zero_point + gridding.float_to_int(gridding.float_to_grid(init_position.x)), zero_point + gridding.float_to_int(gridding.float_to_grid(init_position.x)), zero_point + gridding.float_to_int(gridding.float_to_grid(init_position.y)), zero_point + gridding.float_to_int(gridding.float_to_grid(init_position.y))};
             while (ros::ok())
             {
                 bool end_flag = false;
-                // float min_sum_cost = std::numeric_limits<float>::max();
                 int select_index = -1;
                 for (int i=0; i<node_vector.size(); i++)
                 {
                     if (node_vector[i].open_node)
                     {
-                        select_index = select_node(select_index, i, node_vector[select_index], node_vector[i]);
+                        if (select_index == -1)
+                        {
+                            select_index = i;
+                        }
+                        else
+                        {
+                            select_index = select_node(select_index, i, node_vector[select_index], node_vector[i]);
+                        }
                     }
                 }
                 if (select_index == -1)
                 {
+                    ROS_ERROR("NOT PATH\n");
                     return false;
                 }
                 for (int i=-1; i<=1; i++)
@@ -188,8 +204,14 @@ class TEST
                                     {
                                         if (((map_cost_global[node_vector[select_index].x + i][node_vector[select_index].y + j] == 0) || ((map_cost_global[node_vector[select_index].x + i][node_vector[select_index].y + j] == -1) && (unknown_grid_path))) && (map_cost_local[node_vector[select_index].x + i][node_vector[select_index].y + j] != 1))
                                         {
-                                            end_flag = node_open(node_vector[select_index].x + i, node_vector[select_index].y + j, node_vector[select_index], node, goal_position);
-                                            node_vector.push_back(node);
+                                            node.x = node_vector[select_index].x + i;
+                                            node.y = node_vector[select_index].y + j;
+                                            bool open_is = node_open_checker(select_index, node, node_vector);
+                                            if (open_is)
+                                            {
+                                                end_flag = node_open(node_vector[select_index], node, goal_position);
+                                                node_vector.push_back(node);
+                                            }
                                             if (end_flag)
                                             {
                                                 break;
@@ -209,6 +231,7 @@ class TEST
                         break;
                     }
                 }
+                node_vector[select_index].open_node = false;
                 if (end_flag)
                 {
                     break;
@@ -240,6 +263,11 @@ class TEST
                 if (select_index == 0)
                 {
                     break;
+                }
+                else 
+                {
+                    parent_node_x = node_vector[select_index].px;
+                    parent_node_y = node_vector[select_index].py;
                 }
             }
             return true;
@@ -305,10 +333,6 @@ class TEST
         }
         int select_node(int i1, int i2, NODE node1, NODE node2)
         {
-            if (i1 == -1)
-            {
-                return i2;
-            }
             if (node1.sum_cost < node2.sum_cost)
             {
                 return i1;
@@ -330,10 +354,19 @@ class TEST
             }
             return i1;
         }
-        bool node_open(int x, int y, NODE node_before, NODE &node, geometry_msgs::Point gp)
+        bool node_open_checker(int index, NODE check_node, std::vector<NODE> stack_node_vector)
         {
-            node.x = x;
-            node.y = y;
+            for (int i=0; i<stack_node_vector.size(); i++)
+            {
+                if ((index != i) && (stack_node_vector[i].x == check_node.x) && (stack_node_vector[i].y == check_node.y))
+                {
+                    return false;
+                }
+            }
+            return true;
+        }
+        bool node_open(NODE node_before, NODE &node, geometry_msgs::Point gp)
+        {
             node.goal_cost = node_before.goal_cost + euclidean_distance(gridding.int_to_grid(node_before.x - zero_point), gridding.int_to_grid(node_before.y - zero_point), gridding.int_to_grid(node.x - zero_point), gridding.int_to_grid(node.y - zero_point));
             node.heuristic_cost = euclidean_distance(gridding.int_to_grid(node.x - zero_point), gridding.int_to_grid(node.y - zero_point), gridding.float_to_grid(gp.x), gridding.float_to_grid(gp.y));
             node.sum_cost = node.goal_cost + node.heuristic_cost;
@@ -357,129 +390,5 @@ int main(int argc, char **argv)
     printf("\n");
     ros::spinOnce();
     ros::spin();
+    return 0;
 }
-
-
-// float localization_sita(std::vector<float> me, std::vector<float> fixpose, float fixsita, std::vector<std::vector<float>> ob_global, std::vector<float> obran, std::vector<float> obsita)
-// {
-//     std::vector<std::vector<float>> ob_local;
-//     std::vector<float> oblocal_to_obglobal;
-//     float sita_miss = (M_PI/180)*(3);
-//     float sita_grid = (M_PI/180)*(0.1);
-//     float pose_miss = 2;
-//     float oblocal_to_obglobal_min;
-//     float var_stack = std::numeric_limits<float>::max();
-//     float var, ave;
-//     float new_fixsita;
-//     bool min_ok_frag;
-//     for (float i=(me[2]-sita_miss); i<=(me[2]+sita_miss); i+=sita_grid)
-//     {
-//         ob_local.clear();
-//         for (int j=0; j<obran.size(); j++)
-//         {
-//             ob_local.push_back({me[0] + obran[j]*cos(i), me[1] + obran[j]*sin(i)});
-//         }
-//         oblocal_to_obglobal.clear();
-//         for (int j=0; j<ob_local.size(); j++)
-//         {
-//             oblocal_to_obglobal_min = std::numeric_limits<float>::max();
-//             min_ok_frag = false;
-//             for (int k=0; k<ob_global.size(); k++)
-//             {
-//                 if ((sqrt((pow((ob_local[j][0]-ob_global[k][0]),2))+(pow((ob_local[j][1]-ob_global[k][1]),2)))) <= ((sqrt(2))*pose_miss))
-//                 // if ((sqrt((pow((ob_local[j][0]-ob_global[k][0]),2))+(pow((ob_local[j][1]-ob_global[k][1]),2)))) > (2*pose_miss))
-//                 // if (1)
-//                 {
-//                     continue;
-//                 }
-//                 else if ((sqrt((pow((ob_local[j][0]-ob_global[k][0]),2))+(pow((ob_local[j][1]-ob_global[k][1]),2)))) < oblocal_to_obglobal_min)
-//                 {
-//                     oblocal_to_obglobal_min = sqrt((pow((ob_local[j][0]-ob_global[k][0]),2))+(pow((ob_local[j][1]-ob_global[k][1]),2)));
-//                     min_ok_frag = true;
-//                 }
-//             }
-//             if (min_ok_frag)
-//             {
-//                 oblocal_to_obglobal.push_back(oblocal_to_obglobal_min);
-//             }
-//         }
-//         var = 0;
-//         ave = 0;
-//         for (int j=0; j<oblocal_to_obglobal.size(); j++)
-//         {
-//             ave += ((oblocal_to_obglobal[j])/(oblocal_to_obglobal.size()));
-//         }
-//         for (int j=0; j<oblocal_to_obglobal.size(); j++)
-//         {
-//             var += ((pow((oblocal_to_obglobal[j]-ave),2))/**(oblocal_to_obglobal.size())*/);
-//         }
-//         if (var < var_stack)
-//         {
-//             var_stack = var;
-//             new_fixsita = i;
-//         }
-//     }
-//     fixsita += (new_fixsita - me[2]);
-//     return fixsita;
-// }
-
-// std::vector<float> localization_pose(std::vector<float> me, std::vector<float> fixpose, float fixsita, std::vector<std::vector<float>> ob_global, std::vector<std::vector<float>> ob_local)
-// {
-//     std::vector<float> oblocal_to_obglobal;
-//     std::vector<float> new_fixpose{0,0};
-//     float pose_miss = 8;
-//     float grid = 1;
-//     float oblocal_to_obglobal_min;
-//     int score, is, js;
-//     int score_stack = 0;
-//     for (float i=((-1)*pose_miss); i<=pose_miss; i+=grid)
-//     {
-//         for (float j=((-1)*pose_miss); j<=pose_miss; j+=grid)
-//         {
-//             score = 0;
-//             for (int l=0; l<ob_local.size(); l++)
-//             {
-//                 for (int m=0; m<ob_global.size(); m++)
-//                 {
-//                     if ((((ob_global[m][0]-(grid/2)) <= (ob_local[l][0]+i)) && ((ob_local[l][0]+i) < (ob_global[m][0]+(grid/2)))) && (((ob_global[m][1]-(grid/2)) <= (ob_local[l][1]+j)) && ((ob_local[l][1]+j) < (ob_global[m][1]+(grid/2)))))
-//                     {
-//                         score++;
-//                         break;
-//                     }
-//                 }
-//             }
-//             if (score_stack < score)
-//             {
-//                 score_stack = score;
-//                 new_fixpose[0] = i;
-//                 new_fixpose[1] = j;
-//             }
-//         }
-//     }
-//     fixpose[0] += new_fixpose[0];
-//     fixpose[1] += new_fixpose[1];
-//     return fixpose;
-// }
-
-
-
-
-
-
-// struct timeval t;   //時間取得用の構造体を定義
-// long sec_0, sec;    //時間の差を比較する変数
-// ros::spinOnce();
-// gettimeofday(&t, NULL);    //時間を取得
-// sec_0 = t.tv_sec;     //整数部分の秒(s)
-// while (ros::ok())
-// {
-//     gettimeofday(&t, NULL);    //時間を取得
-//     sec = t.tv_sec;     //整数部分の秒(s)
-//     ros::spinOnce();
-//     pub_start.publish(go);
-//     // if (ros::ok()!=true)
-//     if ((sec-sec_0) > 3)
-//     {
-//         break;
-//     }
-// }

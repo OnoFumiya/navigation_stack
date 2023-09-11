@@ -54,7 +54,7 @@ class GRIDDING
         }
         float int_to_grid(int s)  // float_to_intの逆をする
         {
-            return (float)((s/arg_size) + (size/2.0)*(s/std::fabs(s)));
+            return (float)((s/arg_size) + (size/2.0));
         }
 };
 
@@ -364,14 +364,11 @@ class SLAM
             obstacle_dist.robot_position.robot_pose.orientation.x = initial.pose.pose.orientation.x;
             obstacle_dist.robot_position.robot_pose.orientation.y = initial.pose.pose.orientation.y;
             obstacle_dist.robot_position.robot_pose.orientation.z = initial.pose.pose.orientation.z;
-            // odom_pose_stack.x = 0.;
-            // odom_pose_stack.y = 0.;
-            // odom_pose_stack.z = 0.;
-            // odom_theta_stack = 0.;
             obstacle_dist.robot_position.odom_pose_stack.x = obstacle_dist.robot_position.odom_pose.x;
             obstacle_dist.robot_position.odom_pose_stack.y = obstacle_dist.robot_position.odom_pose.y;
             obstacle_dist.robot_position.odom_pose_stack.z = obstacle_dist.robot_position.odom_pose.z;
             obstacle_dist.robot_position.odom_theta_stack = obstacle_dist.robot_position.odom_theta;
+            pub_robot_position.publish(obstacle_dist.robot_position.robot_pose);
         }
     public:
         SLAM() : node_h("~")

@@ -4,6 +4,7 @@
 #include <std_msgs/Bool.h>
 #include <geometry_msgs/Twist.h>
 #include <geometry_msgs/Vector3.h>
+#include <geometry_msgs/PoseStamped.h>
 #include <nav_msgs/Odometry.h>
 #include <sensor_msgs/LaserScan.h>
 #include <vector>
@@ -46,7 +47,7 @@ class GRIDDING
         }
         float int_to_grid(int s)  // float_to_intの逆をする
         {
-            return (float)((s/arg_size) + (size/2.0)*(s/std::fabs(s)));
+            return (float)((s/arg_size) + (size/2.0));
         }
 };
 
@@ -71,14 +72,6 @@ class ROBOT_POSITION
             {
                 odom_theta = (2*M_PI - std::fabs(odom_theta))*(((odom.pose.pose.orientation.z)*(odom.pose.pose.orientation.w))/(std::fabs((odom.pose.pose.orientation.z)*(odom.pose.pose.orientation.w))));
             }
-            // position_x = odom.pose.pose.position.x + missed.position.x;
-            // position_y = odom.pose.pose.position.y + missed.position.y;
-            // position_z = odom.pose.pose.position.z + missed.position.z;
-            // theta = (2*(acos(odom.pose.pose.orientation.w + missed.orientation.w)))*((odom.pose.pose.orientation.z + missed.orientation.z)*(odom.pose.pose.orientation.w + missed.orientation.w))/(std::fabs((odom.pose.pose.orientation.z + missed.orientation.z)*(odom.pose.pose.orientation.w + missed.orientation.w)));
-            // if ((std::fabs(theta)) > M_PI)
-            // {
-            //     theta = (2*M_PI - std::fabs(theta))*(((odom.pose.pose.orientation.z + missed.orientation.z)*(odom.pose.pose.orientation.w + missed.orientation.w))/(std::fabs((odom.pose.pose.orientation.z + missed.orientation.z)*(odom.pose.pose.orientation.w + missed.orientation.w))));
-            // }
         }
         void callback_robot(const geometry_msgs::Pose &robot)
         {
@@ -94,6 +87,10 @@ class ROBOT_POSITION
             {
                 robot_theta = (2*M_PI - std::fabs(robot_theta))*(((robot.orientation.z)*(robot.orientation.w))/(std::fabs((robot.orientation.z)*(robot.orientation.w))));
             }
+            // robot_pose.orientation.w = robot.orientation.w;
+            // robot_pose.orientation.x = robot.orientation.x;
+            // robot_pose.orientation.y = robot.orientation.y;
+            // robot_pose.orientation.z = robot.orientation.z;
             f = true;
         }
     public:
@@ -103,9 +100,6 @@ class ROBOT_POSITION
         float odom_theta = 0.0;
         geometry_msgs::Point odom_pose_stack;
         float odom_theta_stack = 0.0;
-        // geometry_msgs::Pose missed;
-        // float position_x = 100.0, position_y = 100.0, position_z = 0.0, theta;
-        float theta;
         ROBOT_POSITION()
         {
             ros::NodeHandle node;
@@ -286,7 +280,7 @@ struct NODE
     float heuristic_cost = std::numeric_limits<float>::max();
     float sum_cost = std::numeric_limits<float>::max();
     bool open_node = false;
-    bool search_end = false;
+    // bool search_end = false;
     int px;
     int py;
 };
@@ -297,12 +291,15 @@ class PATH_PLANNING
     private:
         GRIDDING gridding;
         OBSTACLE_DIST obstacle_dist;
-        float global_cost_range = 0.05;
+        float global_cost_range = 0.23;
         std::string global_path_mode = "A_STAR";
         bool global_path_node_searches = false; // 4近傍ならfalse、8近傍ならtrue
         bool unknown_grid_path = true;
+        std_msgs::Bool goal_flag;
         ros::Publisher pub_global_path;
         ros::Subscriber sub_map;
+        ros::Subscriber sub_goal_flag;
+        ros::Subscriber sub_goal_2dnav;
         navigation_stack::MapInformation map;
         bool map_set_frag;
         geometry_msgs::Pose goal_pose;
@@ -311,8 +308,7 @@ class PATH_PLANNING
         std::vector<int> vector_1d;
         std::vector<std::vector<int>> map_cost_global;
         std::vector<std::vector<int>> map_cost_local;
-        std::vector<NODE> node_1d;
-        std::vector<std::vector<NODE>> node_2d;
+        std::vector<NODE> node_vector;
         void callback_map(const navigation_stack::MapInformation &get_map)
         {
             map.cost.clear();
@@ -327,21 +323,39 @@ class PATH_PLANNING
             }
             map_set_frag = true;
         }
+        void callback_goalflag(const std_msgs::Bool &get_flag)
+        {
+            goal_flag.data = get_flag.data;
+        }
+        void callback_2dnav(const geometry_msgs::PoseStamped nav)
+        {
+            goal_pose.position.x = nav.pose.position.x;
+            goal_pose.position.y = nav.pose.position.y;
+            goal_pose.position.z = nav.pose.position.z;
+            goal_pose.orientation.w = nav.pose.orientation.w;
+            goal_pose.orientation.x = nav.pose.orientation.x;
+            goal_pose.orientation.y = nav.pose.orientation.y;
+            goal_pose.orientation.z = nav.pose.orientation.z;
+            goal_flag.data = false;
+        }
     public:
         PATH_PLANNING()
         {
             ros::NodeHandle node;
             pub_global_path = node.advertise<navigation_stack::PathPoint>("/global_path_planning", 10);
             sub_map = node.subscribe("/mapping", 10, &PATH_PLANNING::callback_map, this);
+            sub_goal_flag = node.subscribe("/goal_flag", 10, &PATH_PLANNING::callback_goalflag, this);
+            sub_goal_2dnav = node.subscribe("/move_base_simple/goal", 10, &PATH_PLANNING::callback_2dnav, this);
             plot_size = (int)((sqrt(std::numeric_limits<int>::max()))/4);
             zero_point = (int)(plot_size/2);
+            goal_flag.data = true;
             wait_map();
-            path_plan();
+            path_plan_control();
         }
         void wait_map()
         {
             vector_1d.resize(plot_size,-1);
-            node_1d.resize(plot_size);
+            map_set_frag = false;
             ros::spinOnce();
             while (ros::ok())
             {
@@ -354,25 +368,28 @@ class PATH_PLANNING
             }
             ros::spinOnce();
         }
+        void path_plan_control()
+        {
+            while (ros::ok())
+            {
+                ros::spinOnce();
+                if (goal_flag.data != true)
+                {
+                    ros::spinOnce();
+                    path_plan();
+                }
+                ros::spinOnce();
+            }
+        }
         void path_plan()
         {
             set_vector_globalmap();
-            // ---~
-            goal_pose.position.x = 0.051961421966552734;
-            goal_pose.position.y = 1.8232258558273315;
-            goal_pose.position.z = 0.0;
-            goal_pose.orientation.w = 1.0;
-            goal_pose.orientation.x = 0.0;
-            goal_pose.orientation.y = 0.0;
-            goal_pose.orientation.z = 0.0;
-            // ~---
             navigation_stack::PathPoint global_path;
-            bool goal_flag = false;
             while (ros::ok())
             {
+                ros::spinOnce();
                 // set_vector_globalmap();
                 set_vector_localmap();
-                geometry_msgs::Point goal_point;
                 obstacle_dist.robot_position.robot_pose.position.x += obstacle_dist.robot_position.odom_pose.x - obstacle_dist.robot_position.odom_pose_stack.x;
                 obstacle_dist.robot_position.robot_pose.position.y += obstacle_dist.robot_position.odom_pose.y - obstacle_dist.robot_position.odom_pose_stack.y;
                 obstacle_dist.robot_position.robot_pose.position.z = 0.00;
@@ -395,156 +412,158 @@ class PATH_PLANNING
                         break;
                     }
                 }
-                obstacle_dist.robot_position.robot_pose.orientation.w = cos(obstacle_dist.robot_position.odom_theta / 2.);
+                obstacle_dist.robot_position.robot_pose.orientation.w = cos(obstacle_dist.robot_position.robot_theta / 2.);
                 obstacle_dist.robot_position.robot_pose.orientation.x = 0.;
                 obstacle_dist.robot_position.robot_pose.orientation.y = 0.;
-                obstacle_dist.robot_position.robot_pose.orientation.z = sin(obstacle_dist.robot_position.odom_theta / 2.);
+                obstacle_dist.robot_position.robot_pose.orientation.z = sin(obstacle_dist.robot_position.robot_theta / 2.);
+                if (goal_flag.data)
+                {
+                    global_path.poses.clear();
+                    pub_global_path.publish(global_path);
+                    return;
+                }
+                bool path_flag = global_path_planning(obstacle_dist.robot_position.robot_pose.position, goal_pose.position, global_path);
                 obstacle_dist.robot_position.odom_pose_stack.x = obstacle_dist.robot_position.odom_pose.x;
                 obstacle_dist.robot_position.odom_pose_stack.y = obstacle_dist.robot_position.odom_pose.y;
                 obstacle_dist.robot_position.odom_pose_stack.z = obstacle_dist.robot_position.odom_pose.z;
                 obstacle_dist.robot_position.odom_theta_stack = obstacle_dist.robot_position.odom_theta;
-                bool path_flag = global_path_planning(obstacle_dist.robot_position.robot_pose.position, goal_pose.position, global_path);
                 ros::spinOnce();
-                if (path_flag != true)
+                if (path_flag)
                 {
-                    ros::spinOnce();
-                    pub_global_path.publish(global_path);
-                    break;
+                    ROS_INFO("global_path is publish\n");
                 }
-                ros::spinOnce();
+                else
+                {
+                    global_path.poses.clear();
+                    ROS_ERROR("No Path...\n");
+                }
                 pub_global_path.publish(global_path);
-                ros::spinOnce();
-                sleep(2);
                 ros::spinOnce();
             }
         }
         bool global_path_planning(geometry_msgs::Point init_position, geometry_msgs::Point goal_position, navigation_stack::PathPoint &global_path)
         {
             global_path.poses.clear();
-            if (global_path_mode == "A_STAR")
+            node_vector.clear();
+            NODE node;
+            node.x = zero_point + gridding.float_to_int(gridding.float_to_grid(init_position.x));
+            node.y = zero_point + gridding.float_to_int(gridding.float_to_grid(init_position.y));
+            node.goal_cost = 0.;
+            node.heuristic_cost = euclidean_distance(gridding.int_to_grid(node.x - zero_point), gridding.int_to_grid(node.y - zero_point), gridding.float_to_grid(goal_position.x), gridding.float_to_grid(goal_position.y));
+            node.sum_cost = node.goal_cost + node.heuristic_cost;
+            node.open_node = true;
+            node.px = node.x;
+            node.py = node.y;
+            ros::spinOnce();
+            node_vector.push_back(node);
+            ros::spinOnce();
+            while (ros::ok())
             {
-                node_2d.resize(plot_size, node_1d);
-                node_2d[zero_point + gridding.float_to_int(gridding.float_to_grid(init_position.x))][zero_point + gridding.float_to_int(gridding.float_to_grid(init_position.y))].x = gridding.float_to_grid(init_position.x);
-                node_2d[zero_point + gridding.float_to_int(gridding.float_to_grid(init_position.x))][zero_point + gridding.float_to_int(gridding.float_to_grid(init_position.y))].y = gridding.float_to_grid(init_position.y);
-                node_2d[zero_point + gridding.float_to_int(gridding.float_to_grid(init_position.x))][zero_point + gridding.float_to_int(gridding.float_to_grid(init_position.y))].goal_cost = 0.0;
-                node_2d[zero_point + gridding.float_to_int(gridding.float_to_grid(init_position.x))][zero_point + gridding.float_to_int(gridding.float_to_grid(init_position.y))].heuristic_cost = euclidean_distance(gridding.float_to_grid(init_position.x), gridding.float_to_grid(init_position.y), gridding.float_to_grid(goal_position.x), gridding.float_to_grid(goal_position.y));
-                node_2d[zero_point + gridding.float_to_int(gridding.float_to_grid(init_position.x))][zero_point + gridding.float_to_int(gridding.float_to_grid(init_position.y))].sum_cost = node_2d[zero_point + gridding.float_to_int(gridding.float_to_grid(init_position.x))][zero_point + gridding.float_to_int(gridding.float_to_grid(init_position.y))].goal_cost + node_2d[zero_point + gridding.float_to_int(gridding.float_to_grid(init_position.x))][zero_point + gridding.float_to_int(gridding.float_to_grid(init_position.y))].heuristic_cost;
-                node_2d[zero_point + gridding.float_to_int(gridding.float_to_grid(init_position.x))][zero_point + gridding.float_to_int(gridding.float_to_grid(init_position.y))].open_node = true;
-                node_2d[zero_point + gridding.float_to_int(gridding.float_to_grid(init_position.x))][zero_point + gridding.float_to_int(gridding.float_to_grid(init_position.y))].search_end = false;
-                node_2d[zero_point + gridding.float_to_int(gridding.float_to_grid(init_position.x))][zero_point + gridding.float_to_int(gridding.float_to_grid(init_position.y))].px = zero_point + gridding.float_to_int(node_2d[zero_point + gridding.float_to_int(gridding.float_to_grid(init_position.x))][zero_point + gridding.float_to_int(gridding.float_to_grid(init_position.y))].x);
-                node_2d[zero_point + gridding.float_to_int(gridding.float_to_grid(init_position.x))][zero_point + gridding.float_to_int(gridding.float_to_grid(init_position.y))].py = zero_point + gridding.float_to_int(node_2d[zero_point + gridding.float_to_int(gridding.float_to_grid(init_position.x))][zero_point + gridding.float_to_int(gridding.float_to_grid(init_position.y))].y);
-                int limit_point[4] = {zero_point + gridding.float_to_int(gridding.float_to_grid(init_position.x)), zero_point + gridding.float_to_int(gridding.float_to_grid(init_position.x)), zero_point + gridding.float_to_int(gridding.float_to_grid(init_position.y)), zero_point + gridding.float_to_int(gridding.float_to_grid(init_position.y))};
-                int search_goal_x, search_goal_y;
-                while (ros::ok())
+                bool end_flag = false;
+                int select_index = -1;
+                for (int i=0; i<node_vector.size(); i++)
                 {
-                    int select_x = zero_point + gridding.float_to_int(gridding.float_to_grid(init_position.x));
-                    int select_y = zero_point + gridding.float_to_int(gridding.float_to_grid(init_position.y));
-                    bool search_goal_flag = false;
-                    float min_sum_cost = std::numeric_limits<double>::max();
-                    for (int i=limit_point[0]; i<=limit_point[1]; i++) // search min_sum_cost in open node
+                    if (node_vector[i].open_node)
                     {
-                        for (int j=limit_point[2]; j<=limit_point[3]; j++)
+                        if (select_index == -1)
                         {
-                            if ((node_2d[i][j].sum_cost <= min_sum_cost) && (node_2d[i][j].open_node))
-                            {
-                                if ((node_2d[i][j].sum_cost != min_sum_cost) || ((node_2d[i][j].sum_cost == min_sum_cost) && (node_2d[i][j].goal_cost < node_2d[select_x][select_y].goal_cost))) //
-                                {
-                                    select_x = i;
-                                    select_y = j;
-                                    min_sum_cost = node_2d[i][j].sum_cost;
-                                }
-                            }
+                            select_index = i;
+                        }
+                        else
+                        {
+                            select_index = select_node(select_index, i, node_vector[select_index], node_vector[i]);
                         }
                     }
-                    for (int i=select_x-1; i<=select_x+1; i++)
+                }
+                if (select_index == -1)
+                {
+                    return false;
+                }
+                for (int i=-1; i<=1; i++)
+                {
+                    if ((0 <= (node_vector[select_index].x + i)) && ((node_vector[select_index].x + i) < plot_size))
                     {
-                        if ((0 <= i) && (i <= plot_size))
+                        for (int j=-1; j<=1; j++)
                         {
-                            for (int j=select_y-1; j<=select_y+1; j++)
+                            if ((0 <= (node_vector[select_index].y + j)) && ((node_vector[select_index].y + j) < plot_size))
                             {
-                                if ((0 <= j) && (j <= plot_size))
+                                if ((i!=0) || (j!=0))
                                 {
-                                    if (((i != select_x) || (j != select_y)) && ((global_path_node_searches) || ((i == select_x) || (j == select_y))))
+                                    if ((global_path_node_searches) || ((i==0) || (j==0)))
                                     {
-                                        if (i < limit_point[0])
+                                        if (((map_cost_global[node_vector[select_index].x + i][node_vector[select_index].y + j] == 0) || ((map_cost_global[node_vector[select_index].x + i][node_vector[select_index].y + j] == -1) && (unknown_grid_path))) && (map_cost_local[node_vector[select_index].x + i][node_vector[select_index].y + j] != 1))
                                         {
-                                            limit_point[0] = i;
-                                        }
-                                        if (limit_point[1] < i)
-                                        {
-                                            limit_point[1] = i;
-                                        }
-                                        if (j < limit_point[2])
-                                        {
-                                            limit_point[2] = j;
-                                        }
-                                        if (limit_point[1] < j)
-                                        {
-                                            limit_point[1] = j;
-                                        }
-                                        if ((node_2d[i][j].search_end != true) && ((unknown_grid_path && (map_cost_global[i][j] != 1) && (map_cost_local[i][j] != 1)) || ((map_cost_global[i][j] == 0) && (map_cost_local[i][j] != 1))))
-                                        {
-                                            node_2d[i][j].x = gridding.int_to_grid(i - zero_point);
-                                            node_2d[i][j].y = gridding.int_to_grid(j - zero_point);
-                                            if ((node_2d[select_x][select_y].goal_cost + euclidean_distance(node_2d[select_x][select_y].x, node_2d[select_x][select_y].y, node_2d[i][j].x, node_2d[i][j].y)) < node_2d[i][j].goal_cost)
+                                            node.x = node_vector[select_index].x + i;
+                                            node.y = node_vector[select_index].y + j;
+                                            bool open_is = node_open_checker(select_index, node, node_vector);
+                                            if (open_is)
                                             {
-                                                node_2d[i][j].goal_cost = node_2d[select_x][select_y].goal_cost + euclidean_distance(node_2d[select_x][select_y].x, node_2d[select_x][select_y].y, node_2d[i][j].x, node_2d[i][j].y);
-                                                node_2d[i][j].px = select_x;
-                                                node_2d[i][j].py = select_y;
+                                                end_flag = node_open(node_vector[select_index], node, goal_position);
+                                                node_vector.push_back(node);
                                             }
-                                            node_2d[i][j].heuristic_cost = euclidean_distance(node_2d[i][j].x, node_2d[i][j].y, gridding.float_to_grid(goal_position.x), gridding.float_to_grid(goal_position.y));
-                                            if (node_2d[i][j].heuristic_cost <= 0.00)
+                                            if (end_flag)
                                             {
-                                                search_goal_flag = true;
-                                                search_goal_x = i;
-                                                search_goal_y = j;
                                                 break;
                                             }
-                                            node_2d[i][j].sum_cost = node_2d[i][j].goal_cost + node_2d[i][j].heuristic_cost;
-                                            node_2d[i][j].open_node = true;
-                                            node_2d[i][j].search_end = false;
                                         }
                                     }
                                 }
+                                if (end_flag)
+                                {
+                                    break;
+                                }
                             }
                         }
-                        if (search_goal_flag)
-                        {
-                            break;
-                        }
                     }
-                    printf("gpp\n");
-                    node_2d[select_x][select_y].open_node = false;
-                    node_2d[select_x][select_y].search_end = true;
-                    if (search_goal_flag)
+                    if (end_flag)
                     {
-                        printf("\ngpp path end\n");
                         break;
                     }
                 }
-                int parent_node_x = search_goal_x;
-                int parent_node_y = search_goal_y;
-                while (ros::ok())
+                node_vector[select_index].open_node = false;
+                if (end_flag)
                 {
-                    geometry_msgs::Vector3 path_node;
-                    path_node.x = node_2d[parent_node_x][parent_node_y].x;
-                    path_node.y = node_2d[parent_node_x][parent_node_y].y;
-                    path_node.z = 0.0;
-                    global_path.poses.insert(global_path.poses.begin(), path_node);
-                    int px_temp = parent_node_x;
-                    int py_temp = parent_node_y;
-                    parent_node_x = node_2d[px_temp][py_temp].px;
-                    parent_node_y = node_2d[px_temp][py_temp].py;
-                    if ((px_temp == parent_node_x) && (py_temp == parent_node_y))
+                    break;
+                }
+            }
+            geometry_msgs::Vector3 vec;
+            int parent_node_x;
+            int parent_node_y;
+            vec.x = gridding.int_to_grid(node_vector[node_vector.size() - 1].x - zero_point);
+            vec.y = gridding.int_to_grid(node_vector[node_vector.size() - 1].y - zero_point);
+            vec.z = 0.;
+            parent_node_x = node_vector[node_vector.size() - 1].px;
+            parent_node_y = node_vector[node_vector.size() - 1].py;
+            global_path.poses.insert(global_path.poses.begin(), vec);
+            while (ros::ok())
+            {
+                int select_index;
+                for (int i=0; i<node_vector.size(); i++)
+                {
+                    if ((parent_node_x == node_vector[i].x) && (parent_node_y == node_vector[i].y))
                     {
+                        vec.x = gridding.int_to_grid(node_vector[i].x - zero_point);
+                        vec.y = gridding.int_to_grid(node_vector[i].y - zero_point);
+                        global_path.poses.insert(global_path.poses.begin(), vec);
+                        select_index = i;
                         break;
                     }
                 }
-                return true;
+                if (select_index == 0)
+                {
+                    break;
+                }
+                else 
+                {
+                    parent_node_x = node_vector[select_index].px;
+                    parent_node_y = node_vector[select_index].py;
+                }
             }
+            return true;
         }
         void set_vector_globalmap()
         {
+            map_cost_global.clear();
             map_cost_global.resize(plot_size,vector_1d);
             for (int i=0; i<map.clearly.size(); i++)
             {
@@ -553,15 +572,15 @@ class PATH_PLANNING
             for (int i=0; i<map.cost.size(); i++)
             {
                 map_cost_global[zero_point + gridding.float_to_int(map.cost[i].x)][zero_point + gridding.float_to_int(map.cost[i].y)] = 1;
-                for (int j=(-1)*(global_cost_range/gridding.size); j<=(global_cost_range/gridding.size); j++)
+                for (int j=(-1)*((int)(global_cost_range/gridding.size)); j<=(int)(global_cost_range/gridding.size); j++)
                 {
-                    if ((0 < (zero_point + gridding.float_to_int(map.cost[i].x) + j)) && ((zero_point + gridding.float_to_int(map.cost[i].x) + j) < plot_size))
+                    if ((0 <= (zero_point + gridding.float_to_int(map.cost[i].x) + j)) && ((zero_point + gridding.float_to_int(map.cost[i].x) + j) < plot_size))
                     {
-                        for (int k=(-1)*(global_cost_range/gridding.size); k<=(global_cost_range/gridding.size); k++)
+                        for (int k=(-1)*((int)(global_cost_range/gridding.size)); k<=(int)(global_cost_range/gridding.size); k++)
                         {
-                            if ((0 < (zero_point + gridding.float_to_int(map.cost[i].y) + k)) && ((zero_point + gridding.float_to_int(map.cost[i].y) + k) < plot_size))
+                            if ((0 <= (zero_point + gridding.float_to_int(map.cost[i].y) + k)) && ((zero_point + gridding.float_to_int(map.cost[i].y) + k) < plot_size))
                             {
-                                if (euclidean_distance(map.cost[i].x, map.cost[i].y, map.cost[i].x + (gridding.int_to_grid(j)), (map.cost[i].y + gridding.int_to_grid(k))) <= global_cost_range)
+                                if (euclidean_distance(map.cost[i].x, map.cost[i].y, (map.cost[i].x + gridding.int_to_grid(j)), (map.cost[i].y + gridding.int_to_grid(k))) <= global_cost_range)
                                 {
                                     map_cost_global[zero_point + gridding.float_to_int(map.cost[i].x) + j][zero_point + gridding.float_to_int(map.cost[i].y) + k] = 1;
                                 }
@@ -573,17 +592,18 @@ class PATH_PLANNING
         }
         void set_vector_localmap()
         {
+            map_cost_local.clear();
             map_cost_local.resize(plot_size,vector_1d);
             for (int i=0; i<obstacle_dist.range_point.size(); i++)
             {
                 map_cost_local[zero_point + gridding.float_to_int(gridding.float_to_grid(obstacle_dist.range_point[i].x))][zero_point + gridding.float_to_int(gridding.float_to_grid(obstacle_dist.range_point[i].y))] = 1;
-                for (int j=(-1)*(global_cost_range/gridding.size); j<=(global_cost_range/gridding.size); j++)
+                for (int j=(-1)*((int)(global_cost_range/gridding.size)); j<=(int)(global_cost_range/gridding.size); j++)
                 {
-                    if ((0 < (zero_point + gridding.float_to_int(gridding.float_to_grid(obstacle_dist.range_point[i].x)) + j)) && ((zero_point + gridding.float_to_int(gridding.float_to_grid(obstacle_dist.range_point[i].x)) + j) < plot_size))
+                    if ((0 <= (zero_point + gridding.float_to_int(gridding.float_to_grid(obstacle_dist.range_point[i].x)) + j)) && ((zero_point + gridding.float_to_int(gridding.float_to_grid(obstacle_dist.range_point[i].x)) + j) < plot_size))
                     {
-                        for (int k=(-1)*(global_cost_range/gridding.size); k<=(global_cost_range/gridding.size); k++)
+                        for (int k=(-1)*((int)(global_cost_range/gridding.size)); k<=(int)(global_cost_range/gridding.size); k++)
                         {
-                            if ((0 < (zero_point + gridding.float_to_int(gridding.float_to_grid(obstacle_dist.range_point[i].y)) + k)) && ((zero_point + gridding.float_to_int(gridding.float_to_grid(obstacle_dist.range_point[i].y)) + k) < plot_size))
+                            if ((0 <= (zero_point + gridding.float_to_int(gridding.float_to_grid(obstacle_dist.range_point[i].y)) + k)) && ((zero_point + gridding.float_to_int(gridding.float_to_grid(obstacle_dist.range_point[i].y)) + k) < plot_size))
                             {
                                 if (euclidean_distance(gridding.float_to_grid(obstacle_dist.range_point[i].x), gridding.float_to_grid(obstacle_dist.range_point[i].y), (gridding.float_to_grid(obstacle_dist.range_point[i].x) + gridding.int_to_grid(j)), (gridding.float_to_grid(obstacle_dist.range_point[i].y) + gridding.int_to_grid(k))) <= global_cost_range)
                                 {
@@ -598,6 +618,54 @@ class PATH_PLANNING
         float euclidean_distance(float x0, float y0, float x1, float y1)
         {
             return (sqrtf(powf((x1 - x0), 2.) + powf((y1 - y0), 2.)));
+        }
+        int select_node(int i1, int i2, NODE node1, NODE node2)
+        {
+            if (node1.sum_cost < node2.sum_cost)
+            {
+                return i1;
+            }
+            else if (node1.sum_cost == node2.sum_cost)
+            {
+                if (node1.goal_cost < node1.goal_cost)
+                {
+                    return i1;
+                }
+                else
+                {
+                    return i2;
+                }
+            }
+            else
+            {
+                return i2;
+            }
+            return i1;
+        }
+        bool node_open_checker(int index, NODE check_node, std::vector<NODE> stack_node_vector)
+        {
+            for (int i=0; i<stack_node_vector.size(); i++)
+            {
+                if ((index != i) && (stack_node_vector[i].x == check_node.x) && (stack_node_vector[i].y == check_node.y))
+                {
+                    return false;
+                }
+            }
+            return true;
+        }
+        bool node_open(NODE node_before, NODE &node, geometry_msgs::Point gp)
+        {
+            node.goal_cost = node_before.goal_cost + euclidean_distance(gridding.int_to_grid(node_before.x - zero_point), gridding.int_to_grid(node_before.y - zero_point), gridding.int_to_grid(node.x - zero_point), gridding.int_to_grid(node.y - zero_point));
+            node.heuristic_cost = euclidean_distance(gridding.int_to_grid(node.x - zero_point), gridding.int_to_grid(node.y - zero_point), gridding.float_to_grid(gp.x), gridding.float_to_grid(gp.y));
+            node.sum_cost = node.goal_cost + node.heuristic_cost;
+            node.open_node = true;
+            node.px = node_before.x;
+            node.py = node_before.y;
+            if (euclidean_distance(gridding.int_to_grid(node.x - zero_point), gridding.int_to_grid(node.y - zero_point), gridding.float_to_grid(gp.x), gridding.float_to_grid(gp.y)) < gridding.size)
+            {
+                return true;
+            }
+            return false;
         }
 };
 
