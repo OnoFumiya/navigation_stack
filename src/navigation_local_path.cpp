@@ -3,21 +3,68 @@
 #include <unistd.h>
 #include <std_msgs/Bool.h>
 #include <geometry_msgs/Twist.h>
+#include <geometry_msgs/Pose.h>
+#include <geometry_msgs/Point.h>
 #include <geometry_msgs/Vector3.h>
+#include <geometry_msgs/PoseWithCovarianceStamped.h>
 #include <geometry_msgs/PoseStamped.h>
 #include <nav_msgs/Odometry.h>
 #include <sensor_msgs/LaserScan.h>
 #include <vector>
 #include <string>
 #include <iostream>
+#include <fstream>
 #include <limits>
 #include <math.h>
+#include <cmath>
 #include <typeinfo>
 #include <sys/time.h>
 #include <matplotlib-cpp/matplotlibcpp.h>
 #include <navigation_stack/MapInformation.h>
 #include <navigation_stack/ExpansionPoints.h>
 #include <navigation_stack/PathPoint.h>
+
+
+#include <cstring>
+#include <algorithm>
+
+
+class PARAM
+{
+    public:
+        // DWA
+
+        // speed
+        float sum_max_speed = 0.60;
+        float sum_min_speed = 0.05;
+        float max_speed_x = 0.55;
+        float min_speed_x = 0.00;
+        float max_speed_y = 0.15;
+        float min_speed_y =-0.15;
+        float max_angle = 40.0 * (M_PI/180.);
+
+        // accel
+        float max_accel_x = 0.20;
+        float max_accel_y = 0.05;
+        float max_angle_accel = 60.0 * (M_PI/180.);
+
+        // weight
+        float velocity_weight = 1.0;
+        float angle_weight = 1.0;
+        float obstacle_distance_weight = 1.0;
+
+        // time
+        float delta_time = 0.2;
+        int predect_step = 5;
+
+        // reso
+        float speed_reso_x = 0.2;
+        float speed_reso_y = 0.05;
+        float speed_reso_ang = 10.0 * (M_PI/180.);
+
+        // other
+        float robot_radius = 0.4;
+};
 
 
 class GRIDDING
@@ -344,26 +391,41 @@ class MOVE_CLASS
 // };
 
 
+struct TRAJECTORY_NODE
+{
+    geometry_msgs::Point node;
+    float angle;
+};
+
 class PATH_MOVING
 {
     private:
         OBSTACLE_DIST obstacle_dist;
+        PARAM param;
         ros::Publisher pub_local_path;
+        ros::Publisher pub_goal_flag;
         ros::Subscriber sub_globalpath;
         navigation_stack::PathPoint global_path;
         std_msgs::Bool end_flag;
         geometry_msgs::Pose goal_pose;
+        std::vector<float> target_angle;
         void callback_globalpath(const navigation_stack::PathPoint &get_path)
         {
             global_path.poses.clear();
+            target_angle.clear();
             geometry_msgs::Vector3 vec;
             vec.z = 0.;
             for (int i=0; i<get_path.poses.size(); i++)
             {
+                if (i!=0)
+                {
+                    target_angle.push_back(atan2((get_path.poses[i].y - get_path.poses[i-1].y), (get_path.poses[i].x - get_path.poses[i-1].x)));
+                }
                 vec.x = get_path.poses[i].x;
                 vec.y = get_path.poses[i].y;
                 global_path.poses.push_back(vec);
             }
+            target_angle.push_back((2*(acos(get_path.goal_pose.orientation.w)))*((get_path.goal_pose.orientation.z)*(get_path.goal_pose.orientation.w))/(std::fabs((get_path.goal_pose.orientation.z)*(get_path.goal_pose.orientation.w))));
             end_flag.data = false;
         }
     public:
@@ -371,6 +433,7 @@ class PATH_MOVING
         {
             ros::NodeHandle node;
             pub_local_path = node.advertise<navigation_stack::PathPoint>("/local_path_planning", 10);
+            pub_goal_flag = node.advertise<std_msgs::Bool>("/goal_flag", 10);
             sub_globalpath = node.subscribe("/global_path_planning", 10, &PATH_MOVING::callback_globalpath, this);
         }
         void move_control()
@@ -396,30 +459,130 @@ class PATH_MOVING
         void path_plan()
         {
             MOVE_CLASS move_class;
-            bool goal_flag = false;
-            float min_dist = std::numeric_limits<float>::max();
-            int index = -1;
-            for (int i=0; i<global_path.poses.size(); i++)
-            {
-                if (euclidean_distance(obstacle_dist.robot_position.robot_pose.position.x, obstacle_dist.robot_position.robot_pose.position.y, global_path.poses[i].x, global_path.poses[i].y) < min_dist)
-                {
-                    min_dist = euclidean_distance(obstacle_dist.robot_position.robot_pose.position.x, obstacle_dist.robot_position.robot_pose.position.y, global_path.poses[i].x, global_path.poses[i].y);
-                    index = i;
-                }
-            }
-            if (index == -1)
-            {
-                ROS_ERROR("MOVE ERROR\n");
-                return;
-            }
+            std::vector<geometry_msgs::Vector3> global_path_stack;
+            std::vector<float> global_angle_stack;
+            geometry_msgs::Vector3 vec;
+            geometry_msgs::Twist vel;
+            vel.linear.x = 0.;
+            vel.linear.y = 0.;
+            vel.linear.z = 0.;
+            vel.angular.x = 0.;
+            vel.angular.y = 0.;
+            vel.angular.z = 0.;
+            double dw[3][2] = {{vel.linear.x, vel.linear.x}, {vel.linear.y, vel.linear.y}, {vel.angular.z, vel.angular.z}};
             while (ros::ok())
             {
+                // if (goal_flag)
+                // {
+                //     ROS_INFO("Goal Reached...\n");
+                //     end_flag.data = true;
+                //     pub_goal_flag.publish(end_flag);
+                //     return;
+                // }
+                global_path_stack.clear();
+                global_angle_stack.clear();
+                global_path_stack.resize(global_path.poses.size());
+                global_angle_stack.resize(target_angle.size());
+                copy(global_path.poses.begin(), global_path.poses.end(), global_path_stack.begin());
+                copy(target_angle.begin(), target_angle.end(), global_angle_stack.begin());
+                bool goal_flag = false;
+                float min_dist = std::numeric_limits<float>::max();
+                int start_index = -1;
+                for (int i=0; i<global_path_stack.size(); i++)
+                {
+                    if (euclidean_distance(obstacle_dist.robot_position.robot_pose.position.x, obstacle_dist.robot_position.robot_pose.position.y, global_path_stack[i].x, global_path_stack[i].y) < min_dist)
+                    {
+                        min_dist = euclidean_distance(obstacle_dist.robot_position.robot_pose.position.x, obstacle_dist.robot_position.robot_pose.position.y, global_path_stack[i].x, global_path_stack[i].y);
+                        start_index = i;
+                    }
+                }
+                if (start_index == -1)
+                {
+                    ROS_ERROR("MOVE ERROR\n");
+                    return;
+                }
+                int target_index = start_index + 1;
+                if (global_path_stack.size() <= target_index)
+                {
+                    ROS_ERROR("NO PATH\n");
+                    return;
+                }
                 if (goal_flag)
                 {
                     ROS_INFO("Goal Reached...\n");
-                    path_set_frag = false;
                     end_flag.data = true;
+                    pub_goal_flag.publish(end_flag);
                     return;
+                }
+                dynamic_window(dw, vel);
+                std::vector<std::vector<TRAJECTORY_NODE>> path_cans;
+                std::vector<TRAJECTORY_NODE> path_can;
+                std::vector<bool> path_bool;
+                path_cans.clear();
+                for (double x=dw[0][0]; x<=dw[0][1]; x+=param.speed_reso_x)
+                {
+                    for (double y=dw[1][0]; y<=dw[1][1]; y+=param.speed_reso_y)
+                    {
+                        for (double ang=dw[2][0]; ang<=dw[2][1]; ang+=param.speed_reso_ang)
+                        {
+                            path_can.clear();
+                        }
+                    }
+                }
+                // ros::spinOnce();
+            }
+        }
+        void dynamic_window(double dw[3][2], geometry_msgs::Twist vel) // float linear_x, float linear_y, float angle)
+        {
+            double dw1[3][2] = {{param.min_speed_x                                , param.max_speed_x                                },{param.min_speed_y                                , param.max_speed_y                                },{(param.max_angle)*(-1)                                , param.max_angle                                       }};
+            double dw2[3][2] = {{vel.linear.x - param.max_accel_x*param.delta_time, vel.linear.x + param.max_accel_x*param.delta_time},{vel.linear.y - param.max_accel_y*param.delta_time, vel.linear.y + param.max_accel_y*param.delta_time},{vel.angular.z - param.max_angle_accel*param.delta_time, vel.angular.z + param.max_angle_accel*param.delta_time}};
+            for (int i=0; i<3; i++)
+            {
+                for (int j=0; j<2; j++)
+                {
+                    if (((dw1[i][j] < dw2[i][j]) && (j==0)) || ((dw2[i][j] < dw1[i][j]) && (j==1)))
+                    {
+                        dw[i][j] = dw2[i][j];
+                    }
+                    else
+                    {
+                        dw[i][j] = dw1[i][j];
+                    }
+                }
+            }
+        }
+        void sim_motion(geometry_msgs::Point robot_pt, float robot_angle, std::vector<TRAJECTORY_NODE> &path_can, double x, double y, double ang)
+        {
+            TRAJECTORY_NODE pt;
+            pt.node.x = robot_pt.x;
+            pt.node.y = robot_pt.y;
+            pt.node.z = 0.;
+            pt.angle = robot_angle;
+            float theta = robot_angle + atan2(y, x);
+            if (ang == 0.)
+            {
+                for (int i=0; i<param.predect_step; i++)
+                {
+                    pt.node.x += sqrtf(powf(x * param.delta_time, 2.) + powf(y * param.delta_time, 2.)) * cos(theta);
+                    pt.node.y += sqrtf(powf(x * param.delta_time, 2.) + powf(y * param.delta_time, 2.)) * sin(theta);
+                    path_can.push_back(pt);
+                }
+            }
+            else
+            {
+                float base_angle = robot_angle + atan2(y, x) + (M_PI / 2.)*(ang / std::fabs(ang));
+                float circle_radius = (sqrtf(powf(x, 2.) + powf(y, 2.))) / std::fabs(ang);
+                geometry_msgs::Point circle_pt;
+                circle_pt.x = circle_radius * cos(base_angle);
+                circle_pt.y = circle_radius * sin(base_angle);
+                for (int i=0; i<param.predect_step; i++)
+                {
+                    float temp_x = pt.node.x;
+                    float temp_y = pt.node.y;
+                    pt.node.x = (temp_x - circle_pt.x) * cos(ang * param.delta_time) - (temp_y - circle_pt.y) * sin(ang * param.delta_time) + temp_x;
+                    pt.node.y = (temp_x - circle_pt.x) * sin(ang * param.delta_time) + (temp_y - circle_pt.y) * cos(ang * param.delta_time) + temp_y;
+                    pt.angle += ang * param.delta_time;
+                    path_can.push_back(pt);
                 }
             }
         }

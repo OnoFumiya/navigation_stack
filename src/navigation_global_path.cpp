@@ -418,10 +418,24 @@ class PATH_PLANNING
                 obstacle_dist.robot_position.robot_pose.orientation.z = sin(obstacle_dist.robot_position.robot_theta / 2.);
                 if (goal_flag.data)
                 {
+                    global_path.goal_pose.position.x = obstacle_dist.robot_position.robot_pose.position.x;
+                    global_path.goal_pose.position.y = obstacle_dist.robot_position.robot_pose.position.y;
+                    global_path.goal_pose.position.z = obstacle_dist.robot_position.robot_pose.position.z;
+                    global_path.goal_pose.orientation.w = obstacle_dist.robot_position.robot_pose.orientation.w;
+                    global_path.goal_pose.orientation.x = obstacle_dist.robot_position.robot_pose.orientation.x;
+                    global_path.goal_pose.orientation.y = obstacle_dist.robot_position.robot_pose.orientation.y;
+                    global_path.goal_pose.orientation.z = obstacle_dist.robot_position.robot_pose.orientation.z;
                     global_path.poses.clear();
                     pub_global_path.publish(global_path);
                     return;
                 }
+                global_path.goal_pose.position.x = goal_pose.position.x;
+                global_path.goal_pose.position.y = goal_pose.position.y;
+                global_path.goal_pose.position.z = goal_pose.position.z;
+                global_path.goal_pose.orientation.w = goal_pose.orientation.w;
+                global_path.goal_pose.orientation.x = goal_pose.orientation.x;
+                global_path.goal_pose.orientation.y = goal_pose.orientation.y;
+                global_path.goal_pose.orientation.z = goal_pose.orientation.z;
                 bool path_flag = global_path_planning(obstacle_dist.robot_position.robot_pose.position, goal_pose.position, global_path);
                 obstacle_dist.robot_position.odom_pose_stack.x = obstacle_dist.robot_position.odom_pose.x;
                 obstacle_dist.robot_position.odom_pose_stack.y = obstacle_dist.robot_position.odom_pose.y;
