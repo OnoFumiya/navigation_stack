@@ -73,45 +73,47 @@ class ROBOT_POSITION
             {
                 odom_theta = (2*M_PI - std::fabs(odom_theta))*(((odom.pose.pose.orientation.z)*(odom.pose.pose.orientation.w))/(std::fabs((odom.pose.pose.orientation.z)*(odom.pose.pose.orientation.w))));
             }
-            // position_x = odom.pose.pose.position.x + missed.position.x;
-            // position_y = odom.pose.pose.position.y + missed.position.y;
-            // position_z = odom.pose.pose.position.z + missed.position.z;
-            // theta = (2*(acos(odom.pose.pose.orientation.w + missed.orientation.w)))*((odom.pose.pose.orientation.z + missed.orientation.z)*(odom.pose.pose.orientation.w + missed.orientation.w))/(std::fabs((odom.pose.pose.orientation.z + missed.orientation.z)*(odom.pose.pose.orientation.w + missed.orientation.w)));
-            // if ((std::fabs(theta)) > M_PI)
-            // {
-            //     theta = (2*M_PI - std::fabs(theta))*(((odom.pose.pose.orientation.z + missed.orientation.z)*(odom.pose.pose.orientation.w + missed.orientation.w))/(std::fabs((odom.pose.pose.orientation.z + missed.orientation.z)*(odom.pose.pose.orientation.w + missed.orientation.w))));
-            // }
+            robot_pose.position.x = robot_pose_stack.position.x + odom_pose.x - odom_pose_stack.x;
+            robot_pose.position.y = robot_pose_stack.position.y + odom_pose.y - odom_pose_stack.y;
+            robot_pose.position.z = 0.03;
+            robot_theta = robot_theta_stack + odom_theta - odom_theta_stack;
+            robot_pose.orientation.w = cos(robot_theta / 2.);
+            robot_pose.orientation.x = 0.;
+            robot_pose.orientation.y = 0.;
+            robot_pose.orientation.z = sin(robot_theta / 2.);
         }
         void callback_robot(const geometry_msgs::Pose &robot)
         {
-            robot_pose.position.x = robot.position.x;
-            robot_pose.position.y = robot.position.y;
-            robot_pose.position.z = robot.position.z + 0.03;
-            robot_theta = (2*(acos(robot.orientation.w)))*((robot.orientation.z)*(robot.orientation.w))/(std::fabs((robot.orientation.z)*(robot.orientation.w)));
-            if (std::isnan(robot_theta) == true)
+            robot_pose_stack.position.x = robot.position.x;
+            robot_pose_stack.position.y = robot.position.y;
+            robot_pose_stack.position.z = robot.position.z + 0.03;
+            robot_theta_stack = (2*(acos(robot.orientation.w)))*((robot.orientation.z)*(robot.orientation.w))/(std::fabs((robot.orientation.z)*(robot.orientation.w)));
+            if (std::isnan(robot_theta_stack) == true)
             {
-                robot_theta = 0.0;
+                robot_theta_stack = 0.0;
             }
-            if ((std::fabs(robot_theta)) > M_PI)
+            if ((std::fabs(robot_theta_stack)) > M_PI)
             {
-                robot_theta = (2*M_PI - std::fabs(robot_theta))*(((robot.orientation.z)*(robot.orientation.w))/(std::fabs((robot.orientation.z)*(robot.orientation.w))));
+                robot_theta_stack = (2*M_PI - std::fabs(robot_theta_stack))*(((robot.orientation.z)*(robot.orientation.w))/(std::fabs((robot.orientation.z)*(robot.orientation.w))));
             }
-            // robot_pose.orientation.w = robot.orientation.w;
-            // robot_pose.orientation.x = robot.orientation.x;
-            // robot_pose.orientation.y = robot.orientation.y;
-            // robot_pose.orientation.z = robot.orientation.z;
+            robot_pose_stack.orientation.w = cos(robot_theta_stack / 2.);
+            robot_pose_stack.orientation.x = 0.;
+            robot_pose_stack.orientation.y = 0.;
+            robot_pose_stack.orientation.z = sin(robot_theta_stack / 2.);
+            odom_pose_stack.x = odom_pose.x;
+            odom_pose_stack.y = odom_pose.y;
+            odom_theta_stack = odom_theta;
             f = true;
         }
     public:
         geometry_msgs::Pose robot_pose;
+        geometry_msgs::Pose robot_pose_stack;
         geometry_msgs::Point odom_pose;
         float robot_theta = 0.0;
+        float robot_theta_stack = 0.0;
         float odom_theta = 0.0;
         geometry_msgs::Point odom_pose_stack;
         float odom_theta_stack = 0.0;
-        // geometry_msgs::Pose missed;
-        // float position_x = 100.0, position_y = 100.0, position_z = 0.0, theta;
-        float theta;
         ROBOT_POSITION()
         {
             ros::NodeHandle node;
@@ -253,7 +255,7 @@ class PLOT
         ros::Subscriber sub_marker_expansion;
         ros::Subscriber sub_marker_globalpath;
         RvizMarkerLibrary marker_lib;
-        // ROBOT_POSITION robot_position;
+        ROBOT_POSITION robot_position;
         OBSTACLE_DIST obstacle_dist;
         navigation_stack::MapInformation plot_map;
         std::vector<geometry_msgs::Point> expansion_pose;
@@ -345,9 +347,6 @@ class PLOT
             local_ob_size.x = gridding.size/3;
             local_ob_size.y = gridding.size/3;
             local_ob_size.z = 0.0;
-            // grid_size.x = gridding.size;
-            // grid_size.y = gridding.size;
-            // grid_size.z = 0.001;
             grid_size.x = gridding.size;
             grid_size.y = gridding.size;
             grid_size.z = 0.01;
@@ -402,37 +401,37 @@ class PLOT
                 }
                 ros::spinOnce();
                 pub_marker_map.publish( marker_lib.makeMarkerList( visualization_msgs::Marker::CUBE_LIST, "map", "cube_list1", pose, points, scale, colors, ros::Duration(1) ) );
-                obstacle_dist.robot_position.robot_pose.position.x += obstacle_dist.robot_position.odom_pose.x - obstacle_dist.robot_position.odom_pose_stack.x;
-                obstacle_dist.robot_position.robot_pose.position.y += obstacle_dist.robot_position.odom_pose.y - obstacle_dist.robot_position.odom_pose_stack.y;
-                obstacle_dist.robot_position.robot_pose.position.z = 0.03;
-                obstacle_dist.robot_position.robot_theta += obstacle_dist.robot_position.odom_theta - obstacle_dist.robot_position.odom_theta_stack;
-                while (ros::ok())
-                {
-                    if (std::fabs(obstacle_dist.robot_position.robot_theta) > M_PI)
-                    {
-                        if (obstacle_dist.robot_position.robot_theta > 0.)
-                        {
-                            obstacle_dist.robot_position.robot_theta -= 2*M_PI;
-                        }
-                        else
-                        {
-                            obstacle_dist.robot_position.robot_theta += 2*M_PI;
-                        }
-                    }
-                    if (std::fabs(obstacle_dist.robot_position.robot_theta) <= M_PI)
-                    {
-                        break;
-                    }
-                }
-                obstacle_dist.robot_position.robot_pose.orientation.w = cos(obstacle_dist.robot_position.robot_theta / 2.);
-                obstacle_dist.robot_position.robot_pose.orientation.x = 0.;
-                obstacle_dist.robot_position.robot_pose.orientation.y = 0.;
-                obstacle_dist.robot_position.robot_pose.orientation.z = sin(obstacle_dist.robot_position.robot_theta / 2.);
-                pub_marker_robot.publish( marker_lib.makeMarker( visualization_msgs::Marker::ARROW, "map", "arrow", obstacle_dist.robot_position.robot_pose, robot_size, robot_color, ros::Duration(1) ) );
-                obstacle_dist.robot_position.odom_pose_stack.x = obstacle_dist.robot_position.odom_pose.x;
-                obstacle_dist.robot_position.odom_pose_stack.y = obstacle_dist.robot_position.odom_pose.y;
-                obstacle_dist.robot_position.odom_pose_stack.z = obstacle_dist.robot_position.odom_pose.z;
-                obstacle_dist.robot_position.odom_theta_stack = obstacle_dist.robot_position.odom_theta;
+                // obstacle_dist.robot_position.robot_pose.position.x += obstacle_dist.robot_position.odom_pose.x - obstacle_dist.robot_position.odom_pose_stack.x;
+                // obstacle_dist.robot_position.robot_pose.position.y += obstacle_dist.robot_position.odom_pose.y - obstacle_dist.robot_position.odom_pose_stack.y;
+                // obstacle_dist.robot_position.robot_pose.position.z = 0.03;
+                // obstacle_dist.robot_position.robot_theta += obstacle_dist.robot_position.odom_theta - obstacle_dist.robot_position.odom_theta_stack;
+                // while (ros::ok())
+                // {
+                //     if (std::fabs(obstacle_dist.robot_position.robot_theta) > M_PI)
+                //     {
+                //         if (obstacle_dist.robot_position.robot_theta > 0.)
+                //         {
+                //             obstacle_dist.robot_position.robot_theta -= 2*M_PI;
+                //         }
+                //         else
+                //         {
+                //             obstacle_dist.robot_position.robot_theta += 2*M_PI;
+                //         }
+                //     }
+                //     if (std::fabs(obstacle_dist.robot_position.robot_theta) <= M_PI)
+                //     {
+                //         break;
+                //     }
+                // }
+                // obstacle_dist.robot_position.robot_pose.orientation.w = cos(obstacle_dist.robot_position.robot_theta / 2.);
+                // obstacle_dist.robot_position.robot_pose.orientation.x = 0.;
+                // obstacle_dist.robot_position.robot_pose.orientation.y = 0.;
+                // obstacle_dist.robot_position.robot_pose.orientation.z = sin(obstacle_dist.robot_position.robot_theta / 2.);
+                pub_marker_robot.publish( marker_lib.makeMarker( visualization_msgs::Marker::ARROW, "map", "arrow", robot_position.robot_pose, robot_size, robot_color, ros::Duration(1) ) );
+                // obstacle_dist.robot_position.odom_pose_stack.x = obstacle_dist.robot_position.odom_pose.x;
+                // obstacle_dist.robot_position.odom_pose_stack.y = obstacle_dist.robot_position.odom_pose.y;
+                // obstacle_dist.robot_position.odom_pose_stack.z = obstacle_dist.robot_position.odom_pose.z;
+                // obstacle_dist.robot_position.odom_theta_stack = obstacle_dist.robot_position.odom_theta;
                 rgb.r = 1.0;
                 rgb.g = 0.0;
                 rgb.b = 0.0;
