@@ -209,7 +209,7 @@ class OBSTACLE_DIST
             {
                 if ((ob.range_min <= ob.ranges[i]) && (ob.ranges[i] <= ob.range_max))
                 {
-                    if (ob.ranges[i] <= ((param.sum_max_speed*param.delta_time*param.predect_step) + 2*(param.robot_radius)))
+                    if (ob.ranges[i] <= ((rparam.sum_max_speed*param.delta_time*param.predect_step) + 2*(param.robot_radius)))
                     {
                         point.x = robot_position.robot_pose.position.x + (ob.ranges[i]*(cos(robot_position.robot_theta + ob.angle_min + range_angle_increment*i))) + (lidar_pose[0]*cos(robot_position.robot_theta) - lidar_pose[1]*sin(robot_position.robot_theta));
                         point.y = robot_position.robot_pose.position.y + (ob.ranges[i]*(sin(robot_position.robot_theta + ob.angle_min + range_angle_increment*i))) + (lidar_pose[0]*sin(robot_position.robot_theta) + lidar_pose[1]*cos(robot_position.robot_theta));
@@ -458,27 +458,53 @@ class PATH_MOVING
                 dynamic_window(dw, vel);
                 std::vector<std::vector<TRAJECTORY_NODE>> path_cans;
                 std::vector<TRAJECTORY_NODE> path_can;
-                std::vector<bool> path_bool;
+                std::vector<float> local_costs;
+                std::vector<geometry_msgs::Twist> velocitys;
+                geometry_msgs::Twist velocity;
                 path_cans.clear();
+                local_costs.clear();
+                velocitys.clear();
                 geometry_msgs::Point robot_point;
                 robot_point.x = robot_position.robot_pose.position.x;
                 robot_point.y = robot_position.robot_pose.position.y;
                 robot_point.z = robot_position.robot_pose.position.z;
                 float angle = robot_position.robot_theta;
-                for (double x=dw[0][0]; x<=dw[0][1]; x+=param.speed_reso_x)
+                velocity.linear.x = 0.;
+                velocity.linear.y = 0.;
+                velocity.linear.z = 0.;
+                velocity.angular.x = 0.;
+                velocity.angular.y = 0.;
+                velocity.angular.z = 0.;
+                for (double velocity.linear.x=dw[0][0]; velocity.linear.x<=dw[0][1]; velocity.linear.x+=param.speed_reso_x)
                 {
-                    for (double y=dw[1][0]; y<=dw[1][1]; y+=param.speed_reso_y)
+                    for (double velocity.linear.y=dw[1][0]; velocity.linear.y<=dw[1][1]; velocity.linear.y+=param.speed_reso_y)
                     {
-                        for (double ang=dw[2][0]; ang<=dw[2][1]; ang+=param.speed_reso_ang)
+                        for (double velocity.angular.z=dw[2][0]; velocity.angular.z<=dw[2][1]; velocity.angular.z+=param.speed_reso_ang)
                         {
                             path_can.clear();
                             float local_cost;
-                            local_cost = sim_motion(robot_point, angle, path_can, x, y, ang);
+                            local_cost = sim_motion(robot_point, angle, path_can, velocity);
                             if (param.robot_radius <= local_cost)
                             {
                                 path_cans.push_back(path_can);
+                                local_costs.push_back(local_cost);
+                                velocitys.push_back(velocity);
                             }
                         }
+                    }
+                }
+                float sum_cost = std::numeric_limits<float>::max();
+                for (int i=0; i<path_cans.size(); i++)
+                {
+                    float cost_vel = (param.velocity_weight) * (param.sum_max_speed - sqrtf(powf(velocitys[i].linear.x, 2.) + powf(velocitys[i].linear.y, 2.))) / (param.sum_max_speed);
+                    float cost_ang = (param.tangle_weight) * std::fabs(velocitys[i].angular.z) / (M_PI);
+                    float cost_dist = (param.obstacle_distance_weight) * ((rparam.sum_max_speed*param.delta_time*param.predect_step) + 2*(param.robot_radius)) / local_cost[i];
+                    if ((cost_vel + cost_ang + cost_dist) <= sum_cost)
+                    {
+                        sum_cost = cost_vel + cost_ang + cost_dist;
+                        vel.linear.x = velocitys[i].linear.x;
+                        vel.linear.y = velocitys[i].linear.y;
+                        vel.angular.z = velocitys[i].angular.z;
                     }
                 }
                 // ros::spinOnce();
@@ -503,7 +529,7 @@ class PATH_MOVING
                 }
             }
         }
-        float sim_motion(geometry_msgs::Point robot_pt, float robot_angle, std::vector<TRAJECTORY_NODE> &path_can, double x, double y, double ang)
+        float sim_motion(geometry_msgs::Point robot_pt, float robot_angle, std::vector<TRAJECTORY_NODE> &path_can, geometry_msgs::Twist v)
         {
             TRAJECTORY_NODE pt;
             pt.node.x = robot_pt.x;
@@ -511,13 +537,13 @@ class PATH_MOVING
             pt.node.z = 0.;
             pt.angle = robot_angle;
             float min_cost = std::numeric_limits<float>::max();
-            float theta = robot_angle + atan2(y, x);
-            if (ang == 0.)
+            float theta = robot_angle + atan2(v.linear.y, v.linear.x);
+            if (v.angular.z == 0.)
             {
                 for (int i=0; i<param.predect_step; i++)
                 {
-                    pt.node.x += sqrtf(powf(x * param.delta_time, 2.) + powf(y * param.delta_time, 2.)) * cos(theta);
-                    pt.node.y += sqrtf(powf(x * param.delta_time, 2.) + powf(y * param.delta_time, 2.)) * sin(theta);
+                    pt.node.x += sqrtf(powf(v.linear.x * param.delta_time, 2.) + powf(v.linear.y * param.delta_time, 2.)) * cos(theta);
+                    pt.node.y += sqrtf(powf(v.linear.x * param.delta_time, 2.) + powf(v.linear.y * param.delta_time, 2.)) * sin(theta);
                     path_can.push_back(pt);
                     for (int j=0; j<obstacle_dist.range_point.size(); j++)
                     {
@@ -530,8 +556,8 @@ class PATH_MOVING
             }
             else
             {
-                float base_angle = robot_angle + atan2(y, x) + (M_PI / 2.)*(ang / std::fabs(ang));
-                float circle_radius = (sqrtf(powf(x, 2.) + powf(y, 2.))) / std::fabs(ang);
+                float base_angle = robot_angle + atan2(v.linear.y, v.linear.x) + (M_PI / 2.)*(v.angular.z / std::fabs(v.angular.z));
+                float circle_radius = (sqrtf(powf(v.linear.x, 2.) + powf(v.linear.y, 2.))) / std::fabs(v.angular.z);
                 geometry_msgs::Point circle_pt;
                 circle_pt.x = circle_radius * cos(base_angle);
                 circle_pt.y = circle_radius * sin(base_angle);
@@ -539,9 +565,9 @@ class PATH_MOVING
                 {
                     float temp_x = pt.node.x;
                     float temp_y = pt.node.y;
-                    pt.node.x = (temp_x - circle_pt.x) * cos(ang * param.delta_time) - (temp_y - circle_pt.y) * sin(ang * param.delta_time) + temp_x;
-                    pt.node.y = (temp_x - circle_pt.x) * sin(ang * param.delta_time) + (temp_y - circle_pt.y) * cos(ang * param.delta_time) + temp_y;
-                    pt.angle += ang * param.delta_time;
+                    pt.node.x = (temp_x - circle_pt.x) * cos(v.angular.z * param.delta_time) - (temp_y - circle_pt.y) * sin(v.angular.z * param.delta_time) + temp_x;
+                    pt.node.y = (temp_x - circle_pt.x) * sin(v.angular.z * param.delta_time) + (temp_y - circle_pt.y) * cos(v.angular.z * param.delta_time) + temp_y;
+                    pt.angle += v.angular.z * param.delta_time;
                     path_can.push_back(pt);
                     for (int j=0; j<obstacle_dist.range_point.size(); j++)
                     {
