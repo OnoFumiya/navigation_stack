@@ -251,16 +251,19 @@ class PLOT
         ros::Publisher pub_marker_ob;
         ros::Publisher pub_marker_expansion;
         ros::Publisher pub_marker_globalpath;
+        ros::Publisher pub_marker_localpath;
         ros::Subscriber sub_map;
         ros::Subscriber sub_marker_expansion;
         ros::Subscriber sub_marker_globalpath;
+        ros::Subscriber sub_marker_localpath;
         RvizMarkerLibrary marker_lib;
         ROBOT_POSITION robot_position;
         OBSTACLE_DIST obstacle_dist;
         navigation_stack::MapInformation plot_map;
         std::vector<geometry_msgs::Point> expansion_pose;
         std::vector<geometry_msgs::Point> globalpath_pose;
-        bool map_set_frag,expansion_frag,globalpath_frag;
+        std::vector<geometry_msgs::Point> localpath_pose;
+        bool map_set_frag, expansion_frag, globalpath_frag, localpath_frag;
         void callback_map(const navigation_stack::MapInformation &get_map)
         {
             plot_map.cost.clear();
@@ -291,7 +294,7 @@ class PLOT
         void callback_globalpath(const navigation_stack::PathPoint &gpp)
         {
             geometry_msgs::Point pt_e;
-            pt_e.z = 0.00;
+            pt_e.z = 0.01;
             globalpath_pose.clear();
             for (int i=0; i<gpp.poses.size(); i++)
             {
@@ -300,6 +303,19 @@ class PLOT
                 globalpath_pose.push_back(pt_e);
             }
             globalpath_frag = true;
+        }
+        void callback_localpath(const navigation_stack::PathPoint &lpp)
+        {
+            geometry_msgs::Point pt_e;
+            pt_e.z = 0.05;
+            localpath_pose.clear();
+            for (int i=0; i<lpp.poses.size(); i++)
+            {
+                pt_e.x = lpp.poses[i].x;
+                pt_e.y = lpp.poses[i].y;
+                localpath_pose.push_back(pt_e);
+            }
+            localpath_frag = true;
         }
     public:
         PLOT()
@@ -310,9 +326,11 @@ class PLOT
             pub_marker_ob = node.advertise<visualization_msgs::Marker>("/active_map", 10);
             pub_marker_expansion = node.advertise<visualization_msgs::Marker>("/active_map", 10);
             pub_marker_globalpath = node.advertise<visualization_msgs::Marker>("/active_map", 10);
+            pub_marker_localpath = node.advertise<visualization_msgs::Marker>("/active_map", 10);
             sub_map = node.subscribe("/mapping", 10, &PLOT::callback_map, this);
             sub_marker_expansion = node.subscribe("/expansion_poses", 10, &PLOT::callback_expansion, this);
             sub_marker_globalpath = node.subscribe("/global_path_planning", 10, &PLOT::callback_globalpath, this);
+            sub_marker_localpath = node.subscribe("/local_path_planning", 10, &PLOT::callback_localpath, this);
             get_plot();
             mapping_plot();
         }
@@ -321,6 +339,7 @@ class PLOT
             map_set_frag = false;
             expansion_frag = false;
             globalpath_frag = false;
+            localpath_frag = false;
             while (ros::ok())
             {
                 if (map_set_frag)
@@ -366,6 +385,7 @@ class PLOT
             std::vector<std_msgs::ColorRGBA> ob_colors;
             std::vector<std_msgs::ColorRGBA> expansion_colors;
             std::vector<std_msgs::ColorRGBA> globalpath_colors;
+            std::vector<std_msgs::ColorRGBA> localpath_colors;
             robot_color.a = 1.0;
             robot_color.r = 0.0;
             robot_color.g = 0.0;
@@ -379,6 +399,7 @@ class PLOT
                 ob_colors.clear();
                 expansion_colors.clear();
                 globalpath_colors.clear();
+                localpath_colors.clear();
                 for (int i=0; i<plot_map.cost.size(); i++)
                 {
                     rgb.r = 0;
@@ -452,6 +473,17 @@ class PLOT
                     rgb.b = 0.0;
                     globalpath_colors.resize(globalpath_pose.size(),rgb);
                     pub_marker_globalpath.publish( marker_lib.makeMarkerList( visualization_msgs::Marker::CUBE_LIST, "map", "cube_list2", pose, globalpath_pose, grid_size, globalpath_colors, ros::Duration(1) ) );
+                }
+                if (globalpath_frag)
+                {
+                    rgb.r = 0.0;
+                    rgb.g = 0.0;
+                    rgb.b = 1.0;
+                    grid_size.x = gridding.size/2.;
+                    grid_size.y = gridding.size/2.;
+                    grid_size.z = 0.01;
+                    localpath_colors.resize(localpath_pose.size(),rgb);
+                    pub_marker_localpath.publish( marker_lib.makeMarkerList( visualization_msgs::Marker::CUBE_LIST, "map", "cube_list2", pose, localpath_pose, grid_size, localpath_colors, ros::Duration(1) ) );
                 }
                 ros::spinOnce();
             }
