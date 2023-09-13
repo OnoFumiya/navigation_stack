@@ -201,86 +201,6 @@ class OBSTACLE_DIST
 };
 
 
-class MOVE_CLASS
-{
-    private:
-        ros::Publisher pub_twist;
-    public:
-        MOVE_CLASS()
-        {
-            ros::NodeHandle node;
-            pub_twist = node.advertise<geometry_msgs::Twist>("mobile_base/commands/velocity", 10);
-        }
-        void straight_and_turn_time(float u_vel, float u_ang, float dt)
-        {
-            ros::Rate rate(5.0);
-            geometry_msgs::Twist vel;
-            struct timeval t;
-            int i = 0;
-            while (1)
-            {
-                if (dt-i >= 1)
-                {
-                    i++;
-                }
-                else
-                {
-                    break;
-                }
-            }
-            long udt = (dt-i)*(pow(10,6));
-            dt = i;
-            vel.linear.x = u_vel;
-            vel.angular.z = u_ang*0.99;
-            gettimeofday(&t, NULL);    //時間を取得
-            long sec_0 = t.tv_sec , sec;     //整数部分の秒(s)
-            long usec_0 = t.tv_usec, usec;   //小数以下第6位までの((10**(-6))s)
-            ros::spinOnce();
-            while (ros::ok())
-            {
-                ros::spinOnce();
-                pub_twist.publish(vel);
-                gettimeofday(&t, NULL);
-                sec = t.tv_sec;     //整数部分の秒(s)
-                usec = t.tv_usec;   //小数以下第6位までの((10**(-6))s)
-                if (((sec - sec_0) >= dt) || (dt == 0))
-                {
-                    if ((udt == 0) || (((usec - usec_0) >= 0) && (usec - usec_0) >= udt) || (((usec - usec_0) < 0) && ((usec+(pow(10,6))-usec_0) >= udt)))
-                    {
-                        break;
-                    }
-                }
-            }
-        }
-        void stop_vel()
-        {
-            geometry_msgs::Twist vel;
-            vel.linear.x = 0.0;
-            vel.angular.z = 0.0;
-            struct timeval t;
-            gettimeofday(&t, NULL);    //時間を取得
-            long sec_0 = t.tv_sec, sec;     //整数部分の秒(s)
-            while (ros::ok())
-            {
-                gettimeofday(&t, NULL);    //時間を取得
-                sec = t.tv_sec;     //整数部分の秒(s)
-                ros::spinOnce();
-                pub_twist.publish(vel);
-                if ((sec-sec_0) > 1.0)
-                {
-                    break;
-                }
-            }
-        }
-        void go(float st, float si, float t)
-        {
-            ros::spinOnce();
-            straight_and_turn_time(st, si, t);
-            stop_vel();
-            ros::spinOnce();
-        }
-};
-
 
 struct NODE
 {
@@ -320,6 +240,7 @@ class PATH_PLANNING
         std::vector<std::vector<int>> map_cost_global;
         std::vector<std::vector<int>> map_cost_local;
         std::vector<NODE> node_vector;
+        int id;
         void callback_map(const navigation_stack::MapInformation &get_map)
         {
             map.cost.clear();
@@ -340,6 +261,7 @@ class PATH_PLANNING
         }
         void callback_2dnav(const geometry_msgs::PoseStamped nav)
         {
+            id = 0;
             goal_pose.position.x = nav.pose.position.x;
             goal_pose.position.y = nav.pose.position.y;
             goal_pose.position.z = nav.pose.position.z;
@@ -426,6 +348,8 @@ class PATH_PLANNING
                 if (path_flag)
                 {
                     ROS_INFO("global_path is publish\n");
+                    global_path.id = id;
+                    id++;
                 }
                 else
                 {
@@ -434,6 +358,7 @@ class PATH_PLANNING
                 }
                 pub_global_path.publish(global_path);
                 ros::spinOnce();
+                ros::Duration(2).sleep();
             }
         }
         bool global_path_planning(geometry_msgs::Point init_position, geometry_msgs::Point goal_position, navigation_stack::PathPoint &global_path)

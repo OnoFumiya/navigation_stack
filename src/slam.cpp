@@ -292,7 +292,8 @@ class SLAM
                 {
                     data_publisher(obstacle_dist.robot_position.robot_pose.position, obstacle_dist.robot_position.robot_theta);
                 }
-                sleep(3);
+                // sleep(3);
+                ros::Duration(3).sleep();
             }
         }
         void localization(geometry_msgs::Point robot_pose, std::vector<geometry_msgs::Point> &range_point, std::vector<float> &angle, float diff_x, float diff_y, float diff_theta, float &true_diff_x, float &true_diff_y, float &true_diff_theta)
