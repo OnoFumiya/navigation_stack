@@ -458,19 +458,20 @@ class PATH_MOVING
             vel.angular.y = 0.;
             vel.angular.z = 0.;
             double dw[3][2] = {{vel.linear.x, vel.linear.x}, {vel.linear.y, vel.linear.y}, {vel.angular.z, vel.angular.z}};
-            geometry_msgs::Point robot_point;
-            float angle;
+            // geometry_msgs::Point robot_point;
+            // float angle;
             int target_index = 0;
             while (ros::ok())
             {
                 bool goal_flag = false;
-                robot_point.x = robot_position.robot_pose.position.x;
-                robot_point.y = robot_position.robot_pose.position.y;
-                robot_point.z = robot_position.robot_pose.position.z;
-                angle = robot_position.robot_theta;
+                // robot_point.x = robot_position.robot_pose.position.x;
+                // robot_point.y = robot_position.robot_pose.position.y;
+                // robot_point.z = robot_position.robot_pose.position.z;
+                // angle = robot_position.robot_theta;
                 if (id_stack != -1)
                 {
-                    if (euclidean_distance(robot_point.x, robot_point.y, global_path_stack[global_path_stack.size()-1].x, global_path_stack[global_path_stack.size()-1].y) <= param.goal_position_range)
+                    // if (euclidean_distance(robot_point.x, robot_point.y, global_path_stack[global_path_stack.size()-1].x, global_path_stack[global_path_stack.size()-1].y) <= param.goal_position_range)
+                    if (euclidean_distance(robot_position.robot_pose.position.x, robot_position.robot_pose.position.y, global_path_stack[global_path_stack.size()-1].x, global_path_stack[global_path_stack.size()-1].y) <= param.goal_position_range)
                     {
                         goal_flag = true;
                     }
@@ -497,9 +498,11 @@ class PATH_MOVING
                     start_index = -1;
                     for (int i=0; i<global_path_stack.size(); i++)
                     {
-                        if (euclidean_distance(robot_point.x, robot_point.y, global_path_stack[i].x, global_path_stack[i].y) < min_dist)
+                        // if (euclidean_distance(robot_point.x, robot_point.y, global_path_stack[i].x, global_path_stack[i].y) < min_dist)
+                        if (euclidean_distance(robot_position.robot_pose.position.x, robot_position.robot_pose.position.y, global_path_stack[i].x, global_path_stack[i].y) < min_dist)
                         {
-                            min_dist = euclidean_distance(robot_point.x, robot_point.y, global_path_stack[i].x, global_path_stack[i].y);
+                            // min_dist = euclidean_distance(robot_point.x, robot_point.y, global_path_stack[i].x, global_path_stack[i].y);
+                            min_dist = euclidean_distance(robot_position.robot_pose.position.x, robot_position.robot_pose.position.y, global_path_stack[i].x, global_path_stack[i].y);
                             start_index = i;
                         }
                     }
@@ -518,7 +521,8 @@ class PATH_MOVING
                     }
                     target_index = start_index + 1;
                 }
-                else if (euclidean_distance(robot_point.x, robot_point.y, global_path_stack[target_index].x, global_path_stack[target_index].y) <= param.local_position_range)
+                // else if (euclidean_distance(robot_point.x, robot_point.y, global_path_stack[target_index].x, global_path_stack[target_index].y) <= param.local_position_range)
+                else if (euclidean_distance(robot_position.robot_pose.position.x, robot_position.robot_pose.position.y, global_path_stack[target_index].x, global_path_stack[target_index].y) <= param.local_position_range)
                 {
                     if ((target_index + param.local_goal_range) <= (global_path_stack.size()-1))
                     {
@@ -553,9 +557,10 @@ class PATH_MOVING
                 path_cans.clear();
                 local_costs.clear();
                 velocitys.clear();
-                robot_point.x = robot_position.robot_pose.position.x;
-                robot_point.y = robot_position.robot_pose.position.y;
-                robot_point.z = robot_position.robot_pose.position.z;
+                // robot_point.x = robot_position.robot_pose.position.x;
+                // robot_point.y = robot_position.robot_pose.position.y;
+                // robot_point.z = robot_position.robot_pose.position.z;
+                // angle = robot_position.robot_theta;
                 velocity.linear.x = 0.;
                 velocity.linear.y = 0.;
                 velocity.linear.z = 0.;
@@ -571,14 +576,16 @@ class PATH_MOVING
                         {
                             path_can.clear();
                             float local_cost;
-                            local_cost = sim_motion(robot_point, angle, path_can, velocity);
+                            // local_cost = sim_motion(robot_point, angle, path_can, velocity);
+                            local_cost = sim_motion(robot_position.robot_pose.position, robot_position.robot_theta, path_can, velocity);
+                            // ROS_INFO("velocity = %.2f, %.2f, %.2f\npath = \n[%.2f, %.2f], [%.2f, %.2f], [%.2f, %.2f], [%.2f, %.2f]\n\n",velocity.linear.x,velocity.linear.y,velocity.angular.z,path_can[0].node.x,path_can[0].node.y,path_can[1].node.x,path_can[1].node.y,path_can[2].node.x,path_can[2].node.y,path_can[3].node.x,path_can[3].node.y);
                             if (param.robot_radius <= local_cost)
                             {
-                                path_cans.push_back(path_can);
                                 if (((param.sum_max_speed*param.delta_time*param.predect_step) + 2*(param.robot_radius)) < local_cost)
                                 {
                                     local_cost = ((param.sum_max_speed*param.delta_time*param.predect_step) + 2*(param.robot_radius));
                                 }
+                                path_cans.push_back(path_can);
                                 local_costs.push_back(local_cost);
                                 velocitys.push_back(velocity);
                             }
@@ -599,11 +606,12 @@ class PATH_MOVING
                     float cost_ang;
                     if (param.omni_base)
                     {
-                        cost_ang = (param.angle_weight) * std::fabs(target_angle[target_index] - (angle+velocitys[i].angular.z*param.delta_time)) / (M_PI);
+                        cost_ang = (param.angle_weight) * std::fabs(target_angle[target_index] - (robot_position.robot_theta+velocitys[i].angular.z*param.delta_time)) / (M_PI);
                     }
                     else
                     {
-                        cost_ang = (param.angle_weight) * atan2(global_path_stack[target_index].y - robot_point.y, global_path_stack[target_index].x - robot_point.x);
+                        // cost_ang = (param.angle_weight) * atan2(global_path_stack[target_index].y - robot_point.y, global_path_stack[target_index].x - robot_point.x);
+                        cost_ang = (param.angle_weight) * atan2(global_path_stack[target_index].y - robot_position.robot_pose.position.y, global_path_stack[target_index].x - robot_position.robot_pose.position.x) / (M_PI);
                     }
                     float cost_dist = (param.obstacle_distance_weight) * ((param.sum_max_speed*param.delta_time*param.predect_step) + 2*(param.robot_radius)) / local_costs[i];
                     if ((cost_vel + cost_ang + cost_dist) <= sum_cost)
@@ -663,10 +671,10 @@ class PATH_MOVING
                     }
                 }
             }
-            ROS_INFO("vel = %.2f, %.2f, %.2f",vel.linear.x,vel.linear.y,vel.angular.z);
-            ROS_INFO("dw1 = [[%.2f, %.2f], [%.2f, %.2f], [%.2f, %.2f]]",dw1[0][0],dw1[0][1],dw1[1][0],dw1[1][1],dw1[2][0],dw1[2][1]);
-            ROS_INFO("dw2 = [[%.2f, %.2f], [%.2f, %.2f], [%.2f, %.2f]]",dw2[0][0],dw2[0][1],dw2[1][0],dw2[1][1],dw2[2][0],dw2[2][1]);
-            ROS_INFO("dw  = [[%.2f, %.2f], [%.2f, %.2f], [%.2f, %.2f]]\n",dw[0][0],dw[0][1],dw[1][0],dw[1][1],dw[2][0],dw[2][1]);
+            // ROS_INFO("vel = %.2f, %.2f, %.2f",vel.linear.x,vel.linear.y,vel.angular.z);
+            // ROS_INFO("dw1 = [[%.2f, %.2f], [%.2f, %.2f], [%.2f, %.2f]]",dw1[0][0],dw1[0][1],dw1[1][0],dw1[1][1],dw1[2][0],dw1[2][1]);
+            // ROS_INFO("dw2 = [[%.2f, %.2f], [%.2f, %.2f], [%.2f, %.2f]]",dw2[0][0],dw2[0][1],dw2[1][0],dw2[1][1],dw2[2][0],dw2[2][1]);
+            // ROS_INFO("dw  = [[%.2f, %.2f], [%.2f, %.2f], [%.2f, %.2f]]\n",dw[0][0],dw[0][1],dw[1][0],dw[1][1],dw[2][0],dw[2][1]);
         }
         float sim_motion(geometry_msgs::Point robot_pt, float robot_angle, std::vector<TRAJECTORY_NODE> &path_can, geometry_msgs::Twist v)
         {
@@ -676,7 +684,7 @@ class PATH_MOVING
             pt.node.z = 0.;
             pt.angle = robot_angle;
             float min_cost = std::numeric_limits<float>::max();
-            float theta = robot_angle + atan2(v.linear.y, v.linear.x);
+            float theta = robot_angle + atan2(v.linear.y * param.delta_time, v.linear.x * param.delta_time);
             if (v.angular.z == 0.)
             {
                 for (int i=0; i<param.predect_step; i++)
@@ -693,13 +701,21 @@ class PATH_MOVING
                     }
                 }
             }
+            else if(sqrtf(powf(v.linear.x, 2.) + powf(v.linear.y, 2.)) == 0.0)
+            {
+                for (int i=0; i<param.predect_step; i++)
+                {
+                    pt.angle += v.angular.z * param.delta_time;
+                    path_can.push_back(pt);
+                }
+            }
             else
             {
-                float base_angle = robot_angle + atan2(v.linear.y, v.linear.x) + (M_PI / 2.)*(v.angular.z / std::fabs(v.angular.z));
-                float circle_radius = (sqrtf(powf(v.linear.x, 2.) + powf(v.linear.y, 2.))) / std::fabs(v.angular.z);
+                float base_angle = robot_angle + atan2(v.linear.y * param.delta_time, v.linear.x * param.delta_time) + (M_PI / 2.)*((v.angular.z * param.delta_time) / std::fabs(v.angular.z * param.delta_time));
+                float circle_radius = (sqrtf(powf(v.linear.x * param.delta_time, 2.) + powf(v.linear.y * param.delta_time, 2.))) / std::fabs(v.angular.z * param.delta_time);
                 geometry_msgs::Point circle_pt;
-                circle_pt.x = circle_radius * cos(base_angle);
-                circle_pt.y = circle_radius * sin(base_angle);
+                circle_pt.x = robot_pt.x + circle_radius * cos(base_angle);
+                circle_pt.y = robot_pt.y + circle_radius * sin(base_angle);
                 for (int i=0; i<param.predect_step; i++)
                 {
                     float temp_x = pt.node.x;
@@ -708,6 +724,7 @@ class PATH_MOVING
                     pt.node.y = (temp_x - circle_pt.x) * sin(v.angular.z * param.delta_time) + (temp_y - circle_pt.y) * cos(v.angular.z * param.delta_time) + circle_pt.y;
                     pt.angle += v.angular.z * param.delta_time;
                     path_can.push_back(pt);
+                    // ROS_INFO("pt = %.2f, %.2f\n",pt.node.x, pt.node.y);
                     for (int j=0; j<obstacle_dist.range_point.size(); j++)
                     {
                         if (euclidean_distance(pt.node.x, pt.node.y, obstacle_dist.range_point[j].x, obstacle_dist.range_point[j].y) < min_cost)
