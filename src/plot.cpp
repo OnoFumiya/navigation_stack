@@ -176,11 +176,8 @@ class OBSTACLE_DIST
     public:
         ROBOT_POSITION robot_position;
         std::vector<float> ob_theta;
-        // std::vector<float> range;
         std::vector<geometry_msgs::Point> range_point;
-        // std::vector<std::vector<double>> range_point;
-        // long range_size = std::numeric_limits<int>::max();
-        float range_angle_increment/*, range_max, range_min*/;
+        float range_angle_increment;
         OBSTACLE_DIST()
         {
             ros::NodeHandle node;
@@ -476,12 +473,13 @@ class PLOT
                 }
                 if (globalpath_frag)
                 {
+                    geometry_msgs::Vector3 line_size;
                     rgb.r = 0.0;
                     rgb.g = 0.0;
                     rgb.b = 1.0;
-                    grid_size.x = gridding.size/2.;
-                    grid_size.y = gridding.size/2.;
-                    grid_size.z = 0.01;
+                    line_size.x = gridding.size / 2.;
+                    line_size.y = gridding.size / 2.;
+                    line_size.z = 0.02;
                     localpath_colors.resize(localpath_pose.size(),rgb);
                     pub_marker_localpath.publish( marker_lib.makeMarkerList( visualization_msgs::Marker::CUBE_LIST, "map", "cube_list2", pose, localpath_pose, grid_size, localpath_colors, ros::Duration(1) ) );
                 }
