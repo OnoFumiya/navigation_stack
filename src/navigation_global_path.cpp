@@ -207,7 +207,8 @@ struct NODE
     float x;
     float y;
     float goal_cost = std::numeric_limits<float>::max();
-    float heuristic_cost = std::numeric_limits<float>::max();
+    // float heuristic_cost = std::numeric_limits<float>::max();
+    float heuristic_cost = 0.;
     float sum_cost = std::numeric_limits<float>::max();
     bool open_node = false;
     // bool search_end = false;
@@ -222,9 +223,9 @@ class PATH_PLANNING
         GRIDDING gridding;
         OBSTACLE_DIST obstacle_dist;
         ROBOT_POSITION robot_position;
-        float global_cost_range = 0.23;
+        float global_cost_range = 0.20;
         std::string global_path_mode = "A_STAR";
-        bool global_path_node_searches = false; // 4近傍ならfalse、8近傍ならtrue
+        bool global_path_node_searches = true; // 4近傍ならfalse、8近傍ならtrue
         bool unknown_grid_path = true;
         std_msgs::Bool goal_flag;
         ros::Publisher pub_global_path;
@@ -306,7 +307,12 @@ class PATH_PLANNING
             while (ros::ok())
             {
                 ros::spinOnce();
-                if (goal_flag.data != true)
+                if (goal_flag.data)
+                {
+                    ros::spinOnce();
+                    continue;
+                }
+                else
                 {
                     ros::spinOnce();
                     path_plan();
@@ -323,6 +329,7 @@ class PATH_PLANNING
                 ros::spinOnce();
                 // set_vector_globalmap();
                 set_vector_localmap();
+                set_vector_initialpoint();
                 if (goal_flag.data)
                 {
                     global_path.goal_pose.position.x = robot_position.robot_pose.position.x;
@@ -358,7 +365,8 @@ class PATH_PLANNING
                 }
                 pub_global_path.publish(global_path);
                 ros::spinOnce();
-                ros::Duration(2).sleep();
+                // ros::spin();
+                // ros::Duration(2).sleep();
             }
         }
         bool global_path_planning(geometry_msgs::Point init_position, geometry_msgs::Point goal_position, navigation_stack::PathPoint &global_path)
@@ -369,7 +377,8 @@ class PATH_PLANNING
             node.x = zero_point + gridding.float_to_int(gridding.float_to_grid(init_position.x));
             node.y = zero_point + gridding.float_to_int(gridding.float_to_grid(init_position.y));
             node.goal_cost = 0.;
-            node.heuristic_cost = euclidean_distance(gridding.int_to_grid(node.x - zero_point), gridding.int_to_grid(node.y - zero_point), gridding.float_to_grid(goal_position.x), gridding.float_to_grid(goal_position.y));
+            // node.heuristic_cost = euclidean_distance(gridding.int_to_grid(node.x - zero_point), gridding.int_to_grid(node.y - zero_point), gridding.float_to_grid(goal_position.x), gridding.float_to_grid(goal_position.y));
+            node.heuristic_cost = 0.;
             node.sum_cost = node.goal_cost + node.heuristic_cost;
             node.open_node = true;
             node.px = node.x;
@@ -411,7 +420,7 @@ class PATH_PLANNING
                                 {
                                     if ((global_path_node_searches) || ((i==0) || (j==0)))
                                     {
-                                        if (((map_cost_global[node_vector[select_index].x + i][node_vector[select_index].y + j] == 0) || ((map_cost_global[node_vector[select_index].x + i][node_vector[select_index].y + j] == -1) && (unknown_grid_path))) && (map_cost_local[node_vector[select_index].x + i][node_vector[select_index].y + j] != 1))
+                                        if ((map_cost_local[node_vector[select_index].x + i][node_vector[select_index].y + j] == 0) || (((map_cost_global[node_vector[select_index].x + i][node_vector[select_index].y + j] == 0) || ((map_cost_global[node_vector[select_index].x + i][node_vector[select_index].y + j] == -1) && (unknown_grid_path))) && (map_cost_local[node_vector[select_index].x + i][node_vector[select_index].y + j] != 1)))
                                         {
                                             node.x = node_vector[select_index].x + i;
                                             node.y = node_vector[select_index].y + j;
@@ -492,11 +501,11 @@ class PATH_PLANNING
             for (int i=0; i<map.cost.size(); i++)
             {
                 map_cost_global[zero_point + gridding.float_to_int(map.cost[i].x)][zero_point + gridding.float_to_int(map.cost[i].y)] = 1;
-                for (int j=(-1)*((int)(global_cost_range/gridding.size)); j<=(int)(global_cost_range/gridding.size); j++)
+                for (int j=(-1)*((int)(global_cost_range/gridding.size + 0.5)); j<=(int)(global_cost_range/gridding.size + 0.5); j++)
                 {
                     if ((0 <= (zero_point + gridding.float_to_int(map.cost[i].x) + j)) && ((zero_point + gridding.float_to_int(map.cost[i].x) + j) < plot_size))
                     {
-                        for (int k=(-1)*((int)(global_cost_range/gridding.size)); k<=(int)(global_cost_range/gridding.size); k++)
+                        for (int k=(-1)*((int)(global_cost_range/gridding.size + 0.5)); k<=(int)(global_cost_range/gridding.size + 0.5); k++)
                         {
                             if ((0 <= (zero_point + gridding.float_to_int(map.cost[i].y) + k)) && ((zero_point + gridding.float_to_int(map.cost[i].y) + k) < plot_size))
                             {
@@ -517,11 +526,11 @@ class PATH_PLANNING
             for (int i=0; i<obstacle_dist.range_point.size(); i++)
             {
                 map_cost_local[zero_point + gridding.float_to_int(gridding.float_to_grid(obstacle_dist.range_point[i].x))][zero_point + gridding.float_to_int(gridding.float_to_grid(obstacle_dist.range_point[i].y))] = 1;
-                for (int j=(-1)*((int)(global_cost_range/gridding.size)); j<=(int)(global_cost_range/gridding.size); j++)
+                for (int j=(-1)*((int)(global_cost_range/gridding.size + 0.5)); j<=(int)(global_cost_range/gridding.size + 0.5); j++)
                 {
                     if ((0 <= (zero_point + gridding.float_to_int(gridding.float_to_grid(obstacle_dist.range_point[i].x)) + j)) && ((zero_point + gridding.float_to_int(gridding.float_to_grid(obstacle_dist.range_point[i].x)) + j) < plot_size))
                     {
-                        for (int k=(-1)*((int)(global_cost_range/gridding.size)); k<=(int)(global_cost_range/gridding.size); k++)
+                        for (int k=(-1)*((int)(global_cost_range/gridding.size + 0.5)); k<=(int)(global_cost_range/gridding.size + 0.5); k++)
                         {
                             if ((0 <= (zero_point + gridding.float_to_int(gridding.float_to_grid(obstacle_dist.range_point[i].y)) + k)) && ((zero_point + gridding.float_to_int(gridding.float_to_grid(obstacle_dist.range_point[i].y)) + k) < plot_size))
                             {
@@ -530,6 +539,46 @@ class PATH_PLANNING
                                     map_cost_local[zero_point + gridding.float_to_int(gridding.float_to_grid(obstacle_dist.range_point[i].x)) + j][zero_point + gridding.float_to_int(gridding.float_to_grid(obstacle_dist.range_point[i].y)) + k] = 1;
                                 }
                             }
+                        }
+                    }
+                }
+            }
+            for (int i=0; i<obstacle_dist.range_point.size(); i++)
+            {
+                if ((((M_PI/4)) < std::fabs(obstacle_dist.ob_theta[i])) && (std::fabs(obstacle_dist.ob_theta[i]) < ((3*M_PI/4))))
+                {
+                    for (int j=1; j<((std::fabs(obstacle_dist.range_point[i].y - robot_position.robot_pose.position.y))/gridding.size); j++)
+                    {
+                        if (map_cost_local[zero_point + gridding.float_to_int(gridding.float_to_grid(robot_position.robot_pose.position.x + ((j*gridding.size/tan(obstacle_dist.ob_theta[i]))*((std::fabs(obstacle_dist.range_point[i].y-robot_position.robot_pose.position.y))/(obstacle_dist.range_point[i].y-robot_position.robot_pose.position.y)))))][zero_point + gridding.float_to_int(gridding.float_to_grid(robot_position.robot_pose.position.y + ((j*gridding.size                                     )*((std::fabs(obstacle_dist.range_point[i].y-robot_position.robot_pose.position.y))/(obstacle_dist.range_point[i].y-robot_position.robot_pose.position.y)))))] != 1)
+                        {
+                            map_cost_local[zero_point + gridding.float_to_int(gridding.float_to_grid(robot_position.robot_pose.position.x + ((j*gridding.size/tan(obstacle_dist.ob_theta[i]))*((std::fabs(obstacle_dist.range_point[i].y-robot_position.robot_pose.position.y))/(obstacle_dist.range_point[i].y-robot_position.robot_pose.position.y)))))][zero_point + gridding.float_to_int(gridding.float_to_grid(robot_position.robot_pose.position.y + ((j*gridding.size                                     )*((std::fabs(obstacle_dist.range_point[i].y-robot_position.robot_pose.position.y))/(obstacle_dist.range_point[i].y-robot_position.robot_pose.position.y)))))] = 0;
+                        }
+                    }
+                }
+                else
+                {
+                    for (int j=1; j<((std::fabs(obstacle_dist.range_point[i].x - robot_position.robot_pose.position.x))/gridding.size); j++)
+                    {
+                        if (map_cost_local[zero_point + gridding.float_to_int(gridding.float_to_grid(robot_position.robot_pose.position.x + ((j*gridding.size                                     )*((std::fabs(obstacle_dist.range_point[i].x-robot_position.robot_pose.position.x))/(obstacle_dist.range_point[i].x-robot_position.robot_pose.position.x)))))][zero_point + gridding.float_to_int(gridding.float_to_grid(robot_position.robot_pose.position.y + ((j*gridding.size*tan(obstacle_dist.ob_theta[i]))*((std::fabs(obstacle_dist.range_point[i].x-robot_position.robot_pose.position.x))/(obstacle_dist.range_point[i].x-robot_position.robot_pose.position.x)))))] != 1)
+                        {
+                            map_cost_local[zero_point + gridding.float_to_int(gridding.float_to_grid(robot_position.robot_pose.position.x + ((j*gridding.size                                     )*((std::fabs(obstacle_dist.range_point[i].x-robot_position.robot_pose.position.x))/(obstacle_dist.range_point[i].x-robot_position.robot_pose.position.x)))))][zero_point + gridding.float_to_int(gridding.float_to_grid(robot_position.robot_pose.position.y + ((j*gridding.size*tan(obstacle_dist.ob_theta[i]))*((std::fabs(obstacle_dist.range_point[i].x-robot_position.robot_pose.position.x))/(obstacle_dist.range_point[i].x-robot_position.robot_pose.position.x)))))] = 0;
+                        }
+                    }
+                }
+            }
+        }
+        void set_vector_initialpoint()
+        {
+            for (int i=(-1)*((int)(global_cost_range/gridding.size + 0.5)); i<=(int)(global_cost_range/gridding.size + 0.5); i++)
+            {
+                if ((0 <= (zero_point + gridding.float_to_int(gridding.float_to_grid(robot_position.robot_pose.position.x)) + i)) && ((zero_point + gridding.float_to_int(gridding.float_to_grid(robot_position.robot_pose.position.x)) + i) < plot_size))
+                {
+                    for (int j=(-1)*((int)(global_cost_range/gridding.size + 0.5)); j<=(int)(global_cost_range/gridding.size + 0.5); j++)
+                    {
+                        if ((0 <= (zero_point + gridding.float_to_int(gridding.float_to_grid(robot_position.robot_pose.position.y)) + j)) && ((zero_point + gridding.float_to_int(gridding.float_to_grid(robot_position.robot_pose.position.y)) + j) < plot_size))
+                        {
+                            map_cost_local[zero_point + gridding.float_to_int(gridding.float_to_grid(robot_position.robot_pose.position.x)) + i][zero_point + gridding.float_to_int(gridding.float_to_grid(robot_position.robot_pose.position.y)) + j] = 0;
+                            // map_cost_global[zero_point + gridding.float_to_int(gridding.float_to_grid(robot_position.robot_pose.position.x)) + i][zero_point + gridding.float_to_int(gridding.float_to_grid(robot_position.robot_pose.position.y)) + j] = 0;
                         }
                     }
                 }
@@ -576,7 +625,8 @@ class PATH_PLANNING
         bool node_open(NODE node_before, NODE &node, geometry_msgs::Point gp)
         {
             node.goal_cost = node_before.goal_cost + euclidean_distance(gridding.int_to_grid(node_before.x - zero_point), gridding.int_to_grid(node_before.y - zero_point), gridding.int_to_grid(node.x - zero_point), gridding.int_to_grid(node.y - zero_point));
-            node.heuristic_cost = euclidean_distance(gridding.int_to_grid(node.x - zero_point), gridding.int_to_grid(node.y - zero_point), gridding.float_to_grid(gp.x), gridding.float_to_grid(gp.y));
+            // node.heuristic_cost = euclidean_distance(gridding.int_to_grid(node.x - zero_point), gridding.int_to_grid(node.y - zero_point), gridding.float_to_grid(gp.x), gridding.float_to_grid(gp.y));
+            node.heuristic_cost = 0.;
             node.sum_cost = node.goal_cost + node.heuristic_cost;
             node.open_node = true;
             node.px = node_before.x;

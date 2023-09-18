@@ -487,6 +487,9 @@ class SLAM
                         vec.z = 0.0;
                         map.clearly.push_back(vec);
                     }
+                    ros::spinOnce();
+                    pub_map.publish(map);
+                    ros::spinOnce();
                 }
                 catch (const YAML::Exception& e)
                 {

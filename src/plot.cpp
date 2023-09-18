@@ -349,13 +349,14 @@ class PLOT
         void mapping_plot()
         {
             GRIDDING gridding;
-            std::vector<geometry_msgs::Point> points;
-            std::vector<std_msgs::ColorRGBA> colors;
+            std::vector<geometry_msgs::Point> map_points;
+            std::vector<std_msgs::ColorRGBA> map_colors;
             geometry_msgs::Vector3 scale;
             geometry_msgs::Vector3 local_ob_size;
             geometry_msgs::Vector3 robot_size;
             geometry_msgs::Vector3 grid_size;
-            geometry_msgs::Pose pose;
+            geometry_msgs::Vector3 line_size;
+            geometry_msgs::Pose base_pose;
             geometry_msgs::Pose robot_pose_plot;
             scale.x = gridding.size*1.0;
             scale.y = gridding.size*1.0;
@@ -366,126 +367,183 @@ class PLOT
             grid_size.x = gridding.size;
             grid_size.y = gridding.size;
             grid_size.z = 0.01;
-            robot_size.x = 0.5;
-            robot_size.y = 0.15;
-            robot_size.z = 0.00;
-            pose.position.x = 0.0;
-            pose.position.y = 0.0;
-            pose.position.z = 0.0;
-            pose.orientation.w = 1.0;
-            pose.orientation.x = 0.0;
-            pose.orientation.y = 0.0;
-            pose.orientation.z = 0.0;
+            line_size.x = gridding.size;
+            line_size.y = gridding.size;
+            line_size.z = 0.02;
+            robot_size.x = 0.3;
+            robot_size.y = 0.1;
+            robot_size.z = 0.1;
+            base_pose.position.x = 0.0;
+            base_pose.position.y = 0.0;
+            base_pose.position.z = 0.0;
+            base_pose.orientation.w = 1.0;
+            base_pose.orientation.x = 0.0;
+            base_pose.orientation.y = 0.0;
+            base_pose.orientation.z = 0.0;
             geometry_msgs::Point pt;
-            std_msgs::ColorRGBA rgb;
-            std_msgs::ColorRGBA robot_color;
+            std_msgs::ColorRGBA black, white, red, blue, cyan, yellow, green, purple, orange;
+            black.a = 1.;
+            black.r = 0.;
+            black.g = 0.;
+            black.b = 0.;
+            white.a = 1.;
+            white.r = 1.;
+            white.g = 1.;
+            white.b = 1.;
+            red.a = 1.;
+            red.r = 1.;
+            red.g = 0.;
+            red.b = 0.;
+            blue.a = 1.;
+            blue.r = 0.;
+            blue.g = 0.;
+            blue.b = 1.;
+            cyan.a = 1.;
+            cyan.r = 0.;
+            cyan.g = 1.;
+            cyan.b = 1.;
+            yellow.a = 1.;
+            yellow.r = 1.;
+            yellow.g = 1.;
+            yellow.b = 0.;
+            green.a = 1.;
+            green.r = 0.;
+            green.g = 1.;
+            green.b = 0.;
+            purple.a = 1.;
+            purple.r = 0.5;
+            purple.g = 0.;
+            purple.b = 0.5;
+            orange.a = 1.;
+            orange.r = 1.;
+            orange.g = 0.66;
+            orange.b = 0.;
             std::vector<std_msgs::ColorRGBA> ob_colors;
             std::vector<std_msgs::ColorRGBA> expansion_colors;
             std::vector<std_msgs::ColorRGBA> globalpath_colors;
             std::vector<std_msgs::ColorRGBA> localpath_colors;
-            robot_color.a = 1.0;
-            robot_color.r = 0.0;
-            robot_color.g = 0.0;
-            robot_color.b = 1.0;
             pt.z = 0;
-            rgb.a = 1.0;
             while (ros::ok())
             {
-                points.clear();
-                colors.clear();
+                map_points.clear();
+                map_colors.clear();
                 ob_colors.clear();
                 expansion_colors.clear();
                 globalpath_colors.clear();
                 localpath_colors.clear();
                 for (int i=0; i<plot_map.cost.size(); i++)
                 {
-                    rgb.r = 0;
-                    rgb.g = 0;
-                    rgb.b = 0;
                     pt.x = plot_map.cost[i].x;
                     pt.y = plot_map.cost[i].y;
-                    points.push_back(pt);
-                    colors.push_back(rgb);
+                    map_points.push_back(pt);
+                    map_colors.push_back(black);
                 }
                 for (int i=0; i<plot_map.clearly.size(); i++)
                 {
-                    rgb.r = 1;
-                    rgb.g = 1;
-                    rgb.b = 1;
                     pt.x = plot_map.clearly[i].x;
                     pt.y = plot_map.clearly[i].y;
-                    points.push_back(pt);
-                    colors.push_back(rgb);
+                    map_points.push_back(pt);
+                    map_colors.push_back(white);
                 }
                 ros::spinOnce();
-                pub_marker_map.publish( marker_lib.makeMarkerList( visualization_msgs::Marker::CUBE_LIST, "map", "cube_list1", pose, points, scale, colors, ros::Duration(1) ) );
-                // obstacle_dist.robot_position.robot_pose.position.x += obstacle_dist.robot_position.odom_pose.x - obstacle_dist.robot_position.odom_pose_stack.x;
-                // obstacle_dist.robot_position.robot_pose.position.y += obstacle_dist.robot_position.odom_pose.y - obstacle_dist.robot_position.odom_pose_stack.y;
-                // obstacle_dist.robot_position.robot_pose.position.z = 0.03;
-                // obstacle_dist.robot_position.robot_theta += obstacle_dist.robot_position.odom_theta - obstacle_dist.robot_position.odom_theta_stack;
-                // while (ros::ok())
-                // {
-                //     if (std::fabs(obstacle_dist.robot_position.robot_theta) > M_PI)
-                //     {
-                //         if (obstacle_dist.robot_position.robot_theta > 0.)
-                //         {
-                //             obstacle_dist.robot_position.robot_theta -= 2*M_PI;
-                //         }
-                //         else
-                //         {
-                //             obstacle_dist.robot_position.robot_theta += 2*M_PI;
-                //         }
-                //     }
-                //     if (std::fabs(obstacle_dist.robot_position.robot_theta) <= M_PI)
-                //     {
-                //         break;
-                //     }
-                // }
-                // obstacle_dist.robot_position.robot_pose.orientation.w = cos(obstacle_dist.robot_position.robot_theta / 2.);
-                // obstacle_dist.robot_position.robot_pose.orientation.x = 0.;
-                // obstacle_dist.robot_position.robot_pose.orientation.y = 0.;
-                // obstacle_dist.robot_position.robot_pose.orientation.z = sin(obstacle_dist.robot_position.robot_theta / 2.);
-                pub_marker_robot.publish( marker_lib.makeMarker( visualization_msgs::Marker::ARROW, "map", "arrow", robot_position.robot_pose, robot_size, robot_color, ros::Duration(1) ) );
-                // obstacle_dist.robot_position.odom_pose_stack.x = obstacle_dist.robot_position.odom_pose.x;
-                // obstacle_dist.robot_position.odom_pose_stack.y = obstacle_dist.robot_position.odom_pose.y;
-                // obstacle_dist.robot_position.odom_pose_stack.z = obstacle_dist.robot_position.odom_pose.z;
-                // obstacle_dist.robot_position.odom_theta_stack = obstacle_dist.robot_position.odom_theta;
-                rgb.r = 1.0;
-                rgb.g = 0.0;
-                rgb.b = 0.0;
-                ob_colors.resize(obstacle_dist.range_point.size(),rgb);
-                pub_marker_ob.publish( marker_lib.makeMarkerList( visualization_msgs::Marker::POINTS, "map", "point_list1", pose, obstacle_dist.range_point, local_ob_size, ob_colors, ros::Duration(1) ) );
-                if (expansion_frag)
+                pub_marker_map.publish( marker_lib.makeMarkerList( visualization_msgs::Marker::CUBE_LIST, "map", "map", base_pose, map_points, scale, map_colors, ros::Duration(1) ) );
+                pub_marker_robot.publish( marker_lib.makeMarker( visualization_msgs::Marker::ARROW, "map", "robot_position", robot_position.robot_pose, robot_size, yellow, ros::Duration(1) ) );
+                ob_colors.resize(obstacle_dist.range_point.size(), red);
+                pub_marker_ob.publish( marker_lib.makeMarkerList( visualization_msgs::Marker::POINTS, "map", "laser_point", base_pose, obstacle_dist.range_point, local_ob_size, ob_colors, ros::Duration(1) ) );
+                if ((expansion_frag) && (expansion_pose.size()!=0))
                 {
-                    rgb.r = 1.0;
-                    rgb.g = 1.0;
-                    rgb.b = 0.0;
-                    expansion_colors.resize(expansion_pose.size(),rgb);
-                    pub_marker_expansion.publish( marker_lib.makeMarkerList( visualization_msgs::Marker::CUBE_LIST, "map", "cube_list2", pose, expansion_pose, grid_size, expansion_colors, ros::Duration(1) ) );
+                    expansion_colors.resize(expansion_pose.size(), cyan);
+                    pub_marker_expansion.publish( marker_lib.makeMarkerList( visualization_msgs::Marker::CUBE_LIST, "map", "expansion_point", base_pose, expansion_pose, grid_size, expansion_colors, ros::Duration(1) ) );
                 }
-                if (globalpath_frag)
+                if ((globalpath_frag) && (globalpath_pose.size()!=0))
                 {
-                    rgb.r = 0.0;
-                    rgb.g = 1.0;
-                    rgb.b = 0.0;
-                    globalpath_colors.resize(globalpath_pose.size(),rgb);
-                    pub_marker_globalpath.publish( marker_lib.makeMarkerList( visualization_msgs::Marker::CUBE_LIST, "map", "cube_list2", pose, globalpath_pose, grid_size, globalpath_colors, ros::Duration(1) ) );
+                    globalpath_colors.resize(globalpath_pose.size(), green);
+                    pub_marker_globalpath.publish( marker_lib.makeMarkerList( visualization_msgs::Marker::CUBE_LIST, "map", "global_path", base_pose, globalpath_pose, grid_size, globalpath_colors, ros::Duration(1) ) );
                 }
-                if (globalpath_frag)
+                if ((localpath_frag) && (localpath_pose.size()!=0))
                 {
-                    geometry_msgs::Vector3 line_size;
-                    rgb.r = 0.0;
-                    rgb.g = 0.0;
-                    rgb.b = 1.0;
-                    line_size.x = gridding.size / 2.;
-                    line_size.y = gridding.size / 2.;
-                    line_size.z = 0.02;
-                    localpath_colors.resize(localpath_pose.size(),rgb);
-                    pub_marker_localpath.publish( marker_lib.makeMarkerList( visualization_msgs::Marker::CUBE_LIST, "map", "cube_list2", pose, localpath_pose, grid_size, localpath_colors, ros::Duration(1) ) );
+                    localpath_colors.resize(localpath_pose.size(), blue);
+                    pub_marker_localpath.publish( marker_lib.makeMarkerList( visualization_msgs::Marker::LINE_STRIP, "map", "local_path", base_pose, localpath_pose, line_size, localpath_colors, ros::Duration(1) ) );
                 }
                 ros::spinOnce();
             }
         }
+        // void set_vector_globalmap()
+        // {
+        //     map_cost_global.clear();
+        //     for (int i=0; i<map.clearly.size(); i++)
+        //     {
+        //         map_cost_global[zero_point + gridding.float_to_int(map.clearly[i].x)][zero_point + gridding.float_to_int(map.clearly[i].y)] = 0;
+        //     }
+        //     for (int i=0; i<map.cost.size(); i++)
+        //     {
+        //         map_cost_global[zero_point + gridding.float_to_int(map.cost[i].x)][zero_point + gridding.float_to_int(map.cost[i].y)] = 1;
+        //         for (int j=(-1)*((int)(global_cost_range/gridding.size + 0.5)); j<=(int)(global_cost_range/gridding.size + 0.5); j++)
+        //         {
+        //             if ((0 <= (zero_point + gridding.float_to_int(map.cost[i].x) + j)) && ((zero_point + gridding.float_to_int(map.cost[i].x) + j) < plot_size))
+        //             {
+        //                 for (int k=(-1)*((int)(global_cost_range/gridding.size + 0.5)); k<=(int)(global_cost_range/gridding.size + 0.5); k++)
+        //                 {
+        //                     if ((0 <= (zero_point + gridding.float_to_int(map.cost[i].y) + k)) && ((zero_point + gridding.float_to_int(map.cost[i].y) + k) < plot_size))
+        //                     {
+        //                         if (euclidean_distance(map.cost[i].x, map.cost[i].y, (map.cost[i].x + gridding.int_to_grid(j)), (map.cost[i].y + gridding.int_to_grid(k))) <= global_cost_range)
+        //                         {
+        //                             map_cost_global[zero_point + gridding.float_to_int(map.cost[i].x) + j][zero_point + gridding.float_to_int(map.cost[i].y) + k] = 1;
+        //                         }
+        //                     }
+        //                 }
+        //             }
+        //         }
+        //     }
+        // }
+        // void set_vector_localmap()
+        // {
+        //     map_cost_local.clear();
+        //     map_cost_local.resize(plot_size,vector_1d);
+        //     for (int i=0; i<obstacle_dist.range_point.size(); i++)
+        //     {
+        //         map_cost_local[zero_point + gridding.float_to_int(gridding.float_to_grid(obstacle_dist.range_point[i].x))][zero_point + gridding.float_to_int(gridding.float_to_grid(obstacle_dist.range_point[i].y))] = 1;
+        //         for (int j=(-1)*((int)(global_cost_range/gridding.size + 0.5)); j<=(int)(global_cost_range/gridding.size + 0.5); j++)
+        //         {
+        //             if ((0 <= (zero_point + gridding.float_to_int(gridding.float_to_grid(obstacle_dist.range_point[i].x)) + j)) && ((zero_point + gridding.float_to_int(gridding.float_to_grid(obstacle_dist.range_point[i].x)) + j) < plot_size))
+        //             {
+        //                 for (int k=(-1)*((int)(global_cost_range/gridding.size + 0.5)); k<=(int)(global_cost_range/gridding.size + 0.5); k++)
+        //                 {
+        //                     if ((0 <= (zero_point + gridding.float_to_int(gridding.float_to_grid(obstacle_dist.range_point[i].y)) + k)) && ((zero_point + gridding.float_to_int(gridding.float_to_grid(obstacle_dist.range_point[i].y)) + k) < plot_size))
+        //                     {
+        //                         if (euclidean_distance(gridding.float_to_grid(obstacle_dist.range_point[i].x), gridding.float_to_grid(obstacle_dist.range_point[i].y), (gridding.float_to_grid(obstacle_dist.range_point[i].x) + gridding.int_to_grid(j)), (gridding.float_to_grid(obstacle_dist.range_point[i].y) + gridding.int_to_grid(k))) <= global_cost_range)
+        //                         {
+        //                             map_cost_local[zero_point + gridding.float_to_int(gridding.float_to_grid(obstacle_dist.range_point[i].x)) + j][zero_point + gridding.float_to_int(gridding.float_to_grid(obstacle_dist.range_point[i].y)) + k] = 1;
+        //                         }
+        //                     }
+        //                 }
+        //             }
+        //         }
+        //     }
+        //     for (int i=0; i<obstacle_dist.range_point.size(); i++)
+        //     {
+        //         if ((((M_PI/4)) < std::fabs(obstacle_dist.ob_theta[i])) && (std::fabs(obstacle_dist.ob_theta[i]) < ((3*M_PI/4))))
+        //         {
+        //             for (int j=1; j<((std::fabs(obstacle_dist.range_point[i].y - robot_position.robot_pose.position.y))/gridding.size); j++)
+        //             {
+        //                 if (map_cost_local[zero_point + gridding.float_to_int(gridding.float_to_grid(robot_position.robot_pose.position.x + ((j*gridding.size/tan(obstacle_dist.ob_theta[i]))*((std::fabs(obstacle_dist.range_point[i].y-robot_position.robot_pose.position.y))/(obstacle_dist.range_point[i].y-robot_position.robot_pose.position.y)))))][zero_point + gridding.float_to_int(gridding.float_to_grid(robot_position.robot_pose.position.y + ((j*gridding.size                                     )*((std::fabs(obstacle_dist.range_point[i].y-robot_position.robot_pose.position.y))/(obstacle_dist.range_point[i].y-robot_position.robot_pose.position.y)))))] != 1)
+        //                 {
+        //                     map_cost_local[zero_point + gridding.float_to_int(gridding.float_to_grid(robot_position.robot_pose.position.x + ((j*gridding.size/tan(obstacle_dist.ob_theta[i]))*((std::fabs(obstacle_dist.range_point[i].y-robot_position.robot_pose.position.y))/(obstacle_dist.range_point[i].y-robot_position.robot_pose.position.y)))))][zero_point + gridding.float_to_int(gridding.float_to_grid(robot_position.robot_pose.position.y + ((j*gridding.size                                     )*((std::fabs(obstacle_dist.range_point[i].y-robot_position.robot_pose.position.y))/(obstacle_dist.range_point[i].y-robot_position.robot_pose.position.y)))))] = 0;
+        //                 }
+        //             }
+        //         }
+        //         else
+        //         {
+        //             for (int j=1; j<((std::fabs(obstacle_dist.range_point[i].x - robot_position.robot_pose.position.x))/gridding.size); j++)
+        //             {
+        //                 if (map_cost_local[zero_point + gridding.float_to_int(gridding.float_to_grid(robot_position.robot_pose.position.x + ((j*gridding.size                                     )*((std::fabs(obstacle_dist.range_point[i].x-robot_position.robot_pose.position.x))/(obstacle_dist.range_point[i].x-robot_position.robot_pose.position.x)))))][zero_point + gridding.float_to_int(gridding.float_to_grid(robot_position.robot_pose.position.y + ((j*gridding.size*tan(obstacle_dist.ob_theta[i]))*((std::fabs(obstacle_dist.range_point[i].x-robot_position.robot_pose.position.x))/(obstacle_dist.range_point[i].x-robot_position.robot_pose.position.x)))))] != 1)
+        //                 {
+        //                     map_cost_local[zero_point + gridding.float_to_int(gridding.float_to_grid(robot_position.robot_pose.position.x + ((j*gridding.size                                     )*((std::fabs(obstacle_dist.range_point[i].x-robot_position.robot_pose.position.x))/(obstacle_dist.range_point[i].x-robot_position.robot_pose.position.x)))))][zero_point + gridding.float_to_int(gridding.float_to_grid(robot_position.robot_pose.position.y + ((j*gridding.size*tan(obstacle_dist.ob_theta[i]))*((std::fabs(obstacle_dist.range_point[i].x-robot_position.robot_pose.position.x))/(obstacle_dist.range_point[i].x-robot_position.robot_pose.position.x)))))] = 0;
+        //                 }
+        //             }
+        //         }
+        //     }
+        // }
 };
 
 

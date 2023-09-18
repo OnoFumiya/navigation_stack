@@ -4,7 +4,7 @@
 
 
     <include file="$(find navigation_stack)/launch/slam_rviz.launch"/>
-    <node pkg="navigation_stack" type="navigation_global_path" name="navigation_global_path"/>
+    <node pkg="navigation_stack" type="navigation_global_path" name="navigation_global_path" output="screen"/>
     <node pkg="navigation_stack" type="navigation_local_path" name="navigation_local_path" output="screen"/>
     <!-- <node pkg="navigation_stack" type="expansion_pointer" name="expansion_pointer"               /> -->
     <node pkg="navigation_stack" type="slam"                   name="slam">
