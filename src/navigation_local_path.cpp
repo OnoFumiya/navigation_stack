@@ -37,7 +37,7 @@ class PARAM
         // speed
         float sum_max_speed = 0.40;
         float sum_min_speed = 0.05;
-        float max_speed_x = 0.25;
+        float max_speed_x = 0.30;
         float min_speed_x = 0.00;
         float max_speed_y = 0.00;
         float min_speed_y =-0.00;
@@ -66,7 +66,7 @@ class PARAM
         float robot_radius = 0.30;
         float goal_position_range = 0.2;
         float local_position_range = 0.3;
-        float goal_angle_range = 50.0 * (M_PI/180.);
+        float goal_angle_range = 10.0 * (M_PI/180.);
         bool omni_base = false;
         // int local_goal_range = 5;
 };
@@ -202,8 +202,8 @@ class OBSTACLE_DIST
     private:
         ros::Subscriber sub_dist;
         geometry_msgs::Point point;
-        float lidar_pose[2] = {0.2, 0.0};
-        // float lidar_pose[2] = {0.0, 0.0};
+        // float lidar_pose[2] = {0.2, 0.0};
+        float lidar_pose[2] = {0.0, 0.0};
         PARAM param;
         bool start_frag;
         void callback_obstacle(const sensor_msgs::LaserScan &ob)
@@ -265,8 +265,8 @@ class MOVE_CLASS
         MOVE_CLASS()
         {
             ros::NodeHandle node;
-            pub_twist = node.advertise<geometry_msgs::Twist>("mobile_base/commands/velocity", 10);
-            // pub_twist = node.advertise<geometry_msgs::Twist>("/cmd_vel", 10);
+            // pub_twist = node.advertise<geometry_msgs::Twist>("mobile_base/commands/velocity", 10);
+            pub_twist = node.advertise<geometry_msgs::Twist>("/cmd_vel", 10);
         }
         void straight_and_turn_time(float u_vel, float u_ang, float dt)
         {
@@ -331,27 +331,29 @@ class MOVE_CLASS
             pub_twist.publish(vel);
             ros::spinOnce();
         }
-        void turn(float angle)
+        void turn(float turn_vel, float angle, float range_rotate = 5.0 * M_PI / 180.)
         {
-            PARAM param;
             geometry_msgs::Twist vel;
             vel.linear.x = 0.;
             vel.linear.y = 0.;
             vel.linear.z = 0.;
             vel.angular.x = 0.;
             vel.angular.y = 0.;
-            vel.angular.z = param.max_angle_accel * param.delta_time * (angle/std::fabs(angle));
+            vel.angular.z = turn_vel * (angle/std::fabs(angle));
             float last_angle = robot_position.odom_theta + angle;
+            if (std::fabs(last_angle) > M_PI)
+            {
+                last_angle -= 2*M_PI*(last_angle / std::fabs(last_angle));
+            }
             while (ros::ok())
             {
-                if (std::fabs(last_angle - robot_position.odom_theta) <= 0.1)
+                if (std::fabs(last_angle - robot_position.odom_theta) <= range_rotate)
                 {
                     stop_vel();
                     break;
                 }
                 ros::spinOnce();
                 only_vel_pub(vel);
-                ros::spinOnce();
             }
         }
 };
@@ -582,6 +584,8 @@ class PATH_MOVING
                             else
                             {
                                 cost_ang = acos((cos(path_cans[j][path_cans[j].size()-1].angle)*(global_path_stack[target_index].x - robot_position.robot_pose.position.x) + sin(path_cans[j][path_cans[j].size()-1].angle)*(global_path_stack[target_index].y - robot_position.robot_pose.position.y)) / sqrtf(powf((global_path_stack[target_index].x - robot_position.robot_pose.position.x), 2.) + powf((global_path_stack[target_index].y - robot_position.robot_pose.position.y), 2.))) / (M_PI);
+                                // cost_ang = acos((cos(path_cans[j][0].angle)*(global_path_stack[target_index].x - robot_position.robot_pose.position.x) + sin(path_cans[j][0].angle)*(global_path_stack[target_index].y - robot_position.robot_pose.position.y)) / sqrtf(powf((global_path_stack[target_index].x - robot_position.robot_pose.position.x), 2.) + powf((global_path_stack[target_index].y - robot_position.robot_pose.position.y), 2.))) / (M_PI);
+                                // cost_ang = acos((cos((path_cans[j][0].angle + path_cans[j][path_cans[j].size()-1].angle)/2.)*(global_path_stack[target_index].x - robot_position.robot_pose.position.x) + sin((path_cans[j][0].angle + path_cans[j][path_cans[j].size()-1].angle)/2.)*(global_path_stack[target_index].y - robot_position.robot_pose.position.y)) / sqrtf(powf((global_path_stack[target_index].x - robot_position.robot_pose.position.x), 2.) + powf((global_path_stack[target_index].y - robot_position.robot_pose.position.y), 2.))) / (M_PI);
                             }
                             cost_dist = ((param.sum_max_speed*param.delta_time*param.predect_step) + 2*(param.robot_radius) - local_costs[j]) / ((param.sum_max_speed*param.delta_time*param.predect_step) + 1*(param.robot_radius));
                             cost_vel *= param.velocity_weight;
@@ -596,7 +600,7 @@ class PATH_MOVING
                     }
                     else
                     {
-                        sum_cost = std::numeric_limits<float>::max();
+                        sum_cost = (-1)*std::numeric_limits<float>::max();
                         float sum_cost_vel = std::numeric_limits<float>::max();
                         float sum_cost_ang = std::numeric_limits<float>::max();
                         float sum_cost_dist = std::numeric_limits<float>::max();
@@ -617,28 +621,28 @@ class PATH_MOVING
                             {
                                 if (std::fabs(cost_dist - sum_cost_dist) <= 0.01)
                                 {
-                                    float lp = last_position(robot_position.robot_pose.position, robot_position.robot_theta, velocitys[j]);
-                                    if (lp <= sum_cost)
-                                    {
-                                        sum_cost = lp;
-                                        best_index = j;
-                                    }
-                                    // if (cost_ang <= sum_cost_ang)
+                                    // float lp = last_position(robot_position.robot_pose.position, robot_position.robot_theta, velocitys[j]);
+                                    // if (lp >= sum_cost)
                                     // {
-                                    //     if (std::fabs(cost_ang - sum_cost_ang) <= 0.01)
-                                    //     {
-                                    //         if (cost_vel <= sum_cost_vel)
-                                    //         {
-                                    //             sum_cost_vel = cost_vel;
-                                    //             best_index = j;
-                                    //         }
-                                    //     }
-                                    //     else
-                                    //     {
-                                    //         sum_cost_ang = cost_ang;
-                                    //         best_index = j;
-                                    //     }
+                                    //     sum_cost = lp;
+                                    //     best_index = j;
                                     // }
+                                    if (cost_ang <= sum_cost_ang)
+                                    {
+                                        if (std::fabs(cost_ang - sum_cost_ang) <= 0.01)
+                                        {
+                                            if (cost_vel <= sum_cost_vel)
+                                            {
+                                                sum_cost_vel = cost_vel;
+                                                best_index = j;
+                                            }
+                                        }
+                                        else
+                                        {
+                                            sum_cost_ang = cost_ang;
+                                            best_index = j;
+                                        }
+                                    }
                                 }
                                 else
                                 {
@@ -684,9 +688,17 @@ class PATH_MOVING
                 move_class.only_vel_pub(velocity);
                 ros::Duration(param.delta_time).sleep();
             }
-            end_flag.data = true;
+            velocity.linear.x = 0.;
+            velocity.linear.y = 0.;
+            velocity.linear.z = 0.;
+            velocity.angular.x = 0.;
+            velocity.angular.y = 0.;
+            velocity.angular.z = 0.;
             ros::spinOnce();
-            pub_goal_flag.publish(end_flag);
+            move_class.only_vel_pub(velocity);
+            // end_flag.data = true;
+            // ros::spinOnce();
+            // pub_goal_flag.publish(end_flag);
             ros::spinOnce();
             while (ros::ok())
             {
@@ -695,15 +707,27 @@ class PATH_MOVING
                     break;
                 }
                 ros::spinOnce();
-                if (std::fabs(target_angle[target_angle.size() - 1] - robot_position.robot_theta) <= param.goal_angle_range)
+                float rotate_angle = acos(cos(robot_position.robot_theta)*cos(target_angle[target_angle.size() - 1]) + sin(robot_position.robot_theta)*sin(target_angle[target_angle.size() - 1])) * (((cos(robot_position.robot_theta)*sin(target_angle[target_angle.size() - 1])) - (sin(robot_position.robot_theta)*cos(target_angle[target_angle.size() - 1]))) / std::fabs((cos(robot_position.robot_theta)*sin(target_angle[target_angle.size() - 1])) - (sin(robot_position.robot_theta)*cos(target_angle[target_angle.size() - 1]))));
+                ROS_INFO("trun : %.4f",rotate_angle*180./M_PI);
+                if (std::fabs(rotate_angle) <= param.goal_angle_range)
                 {
                     break;
                 }
                 else
                 {
+                    ROS_INFO("trun");
                     ros::spinOnce();
-                    move_class.turn(target_angle[target_angle.size()-1]-robot_position.robot_theta);
+                    move_class.turn(param.max_angle_accel * param.delta_time, rotate_angle, param.goal_angle_range); 
                 }
+                // if (std::fabs(target_angle[target_angle.size() - 1] - robot_position.robot_theta) <= param.goal_angle_range)
+                // {
+                //     break;
+                // }
+                // else
+                // {
+                //     ros::spinOnce();
+                //     move_class.turn(target_angle[target_angle.size()-1]-robot_position.robot_theta);
+                // }
             }
             ros::spinOnce();
             move_class.stop_vel();

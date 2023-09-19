@@ -151,8 +151,8 @@ class OBSTACLE_DIST
     private:
         ros::Subscriber sub_dist;
         geometry_msgs::Point point;
-        float lidar_pose[2] = {0.2, 0.0};
-        // float lidar_pose[2] = {0.0, 0.0};
+        // float lidar_pose[2] = {0.2, 0.0};
+        float lidar_pose[2] = {0.0, 0.0};
         bool start_frag;
         void callback_obstacle(const sensor_msgs::LaserScan &ob)
         {
@@ -223,10 +223,10 @@ class PATH_PLANNING
         GRIDDING gridding;
         OBSTACLE_DIST obstacle_dist;
         ROBOT_POSITION robot_position;
-        float global_cost_range = 0.20;
+        float global_cost_range = 0.30;
         std::string global_path_mode = "A_STAR";
         // std::string global_path_mode = "Dijkstra";
-        bool global_path_node_searches = true; // 4近傍ならfalse、8近傍ならtrue
+        bool global_path_node_searches = false; // 4近傍ならfalse、8近傍ならtrue
         bool unknown_grid_path = true;
         std_msgs::Bool goal_flag;
         ros::Publisher pub_global_path;
@@ -570,11 +570,13 @@ class PATH_PLANNING
         }
         void set_vector_initialpoint()
         {
-            for (int i=(-1)*((int)(global_cost_range/gridding.size + 0.5)); i<=(int)(global_cost_range/gridding.size + 0.5); i++)
+            // for (int i=(-1)*((int)(global_cost_range/gridding.size + 0.5)); i<=(int)(global_cost_range/gridding.size + 0.5); i++)
+            for (int i=-1; i<=1; i++)
             {
                 if ((0 <= (zero_point + gridding.float_to_int(gridding.float_to_grid(robot_position.robot_pose.position.x)) + i)) && ((zero_point + gridding.float_to_int(gridding.float_to_grid(robot_position.robot_pose.position.x)) + i) < plot_size))
                 {
-                    for (int j=(-1)*((int)(global_cost_range/gridding.size + 0.5)); j<=(int)(global_cost_range/gridding.size + 0.5); j++)
+                    // for (int j=(-1)*((int)(global_cost_range/gridding.size + 0.5)); j<=(int)(global_cost_range/gridding.size + 0.5); j++)
+                    for (int j=-1; j<=1; j++)
                     {
                         if ((0 <= (zero_point + gridding.float_to_int(gridding.float_to_grid(robot_position.robot_pose.position.y)) + j)) && ((zero_point + gridding.float_to_int(gridding.float_to_grid(robot_position.robot_pose.position.y)) + j) < plot_size))
                         {
