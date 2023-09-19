@@ -35,18 +35,18 @@ class PARAM
         // DWA
 
         // speed
-        float sum_max_speed = 0.60;
+        float sum_max_speed = 0.40;
         float sum_min_speed = 0.05;
-        float max_speed_x = 0.30;
+        float max_speed_x = 0.25;
         float min_speed_x = 0.00;
         float max_speed_y = 0.00;
         float min_speed_y =-0.00;
-        float max_angle = 100.0 * (M_PI/180.);
+        float max_angle = 80.0 * (M_PI/180.);
 
         // accel
-        float max_accel_x = 0.50;
-        float max_accel_y = 0.00;
-        float max_angle_accel = 100.0 * (M_PI/180.);
+        float max_accel_x = 0.30;
+        float max_accel_y = 0.30;
+        float max_angle_accel = 80.0 * (M_PI/180.);
 
         // weight
         float velocity_weight = 1.5;
@@ -58,15 +58,15 @@ class PARAM
         int predect_step = 4;
 
         // reso
-        float speed_reso_x = 0.02;
+        float speed_reso_x = 0.03;
         float speed_reso_y = 0.02;
         float speed_reso_ang = 5.0 * (M_PI/180.);
 
         // other
-        float robot_radius = 0.15;
+        float robot_radius = 0.30;
         float goal_position_range = 0.2;
         float local_position_range = 0.3;
-        float goal_angle_range = 10.0 * (M_PI/180.);
+        float goal_angle_range = 50.0 * (M_PI/180.);
         bool omni_base = false;
         // int local_goal_range = 5;
 };
@@ -202,7 +202,8 @@ class OBSTACLE_DIST
     private:
         ros::Subscriber sub_dist;
         geometry_msgs::Point point;
-        float lidar_pose[2] = {0.0, 0.0};
+        float lidar_pose[2] = {0.2, 0.0};
+        // float lidar_pose[2] = {0.0, 0.0};
         PARAM param;
         bool start_frag;
         void callback_obstacle(const sensor_msgs::LaserScan &ob)
@@ -264,8 +265,8 @@ class MOVE_CLASS
         MOVE_CLASS()
         {
             ros::NodeHandle node;
-            // pub_twist = node.advertise<geometry_msgs::Twist>("mobile_base/commands/velocity", 10);
-            pub_twist = node.advertise<geometry_msgs::Twist>("/cmd_vel", 10);
+            pub_twist = node.advertise<geometry_msgs::Twist>("mobile_base/commands/velocity", 10);
+            // pub_twist = node.advertise<geometry_msgs::Twist>("/cmd_vel", 10);
         }
         void straight_and_turn_time(float u_vel, float u_ang, float dt)
         {
@@ -689,19 +690,19 @@ class PATH_MOVING
             ros::spinOnce();
             while (ros::ok())
             {
-                if (target_angle_stack.size() == 0)
+                if (target_angle.size() == 0)
                 {
                     break;
                 }
                 ros::spinOnce();
-                if (std::fabs(target_angle_stack[target_angle_stack.size() - 1] - robot_position.robot_theta) <= param.goal_angle_range)
+                if (std::fabs(target_angle[target_angle.size() - 1] - robot_position.robot_theta) <= param.goal_angle_range)
                 {
                     break;
                 }
                 else
                 {
                     ros::spinOnce();
-                    move_class.turn(target_angle_stack[target_angle_stack.size()-1]-robot_position.robot_theta);
+                    move_class.turn(target_angle[target_angle.size()-1]-robot_position.robot_theta);
                 }
             }
             ros::spinOnce();

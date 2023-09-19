@@ -151,7 +151,8 @@ class OBSTACLE_DIST
     private:
         ros::Subscriber sub_dist;
         geometry_msgs::Point point;
-        float lidar_pose[2] = {0.0, 0.0};
+        float lidar_pose[2] = {0.2, 0.0};
+        // float lidar_pose[2] = {0.0, 0.0};
         bool start_frag;
         void callback_obstacle(const sensor_msgs::LaserScan &ob)
         {
@@ -211,7 +212,6 @@ struct NODE
     float heuristic_cost = 0.;
     float sum_cost = std::numeric_limits<float>::max();
     bool open_node = false;
-    // bool search_end = false;
     int px;
     int py;
 };
@@ -225,6 +225,7 @@ class PATH_PLANNING
         ROBOT_POSITION robot_position;
         float global_cost_range = 0.20;
         std::string global_path_mode = "A_STAR";
+        // std::string global_path_mode = "Dijkstra";
         bool global_path_node_searches = true; // 4近傍ならfalse、8近傍ならtrue
         bool unknown_grid_path = true;
         std_msgs::Bool goal_flag;
@@ -596,7 +597,8 @@ class PATH_PLANNING
             }
             else if (node1.sum_cost == node2.sum_cost)
             {
-                if (node1.goal_cost < node1.goal_cost)
+                // if (node1.goal_cost > node2.goal_cost)
+                if (node1.goal_cost < node2.goal_cost)
                 {
                     return i1;
                 }
