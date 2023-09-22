@@ -28,6 +28,8 @@
 #include <navigation_stack/MapInformation.h>
 #include <navigation_stack/PathPoint.h>
 
+#include <Eigen/Dense>
+using namespace Eigen;
 
 
 class GRIDDING
@@ -385,9 +387,26 @@ class TEST
 int main(int argc, char **argv)
 {
     ros::init(argc, argv, "cpp_lecture");
-    TEST test;
-    ROS_INFO("A_STAR is okay");
-    printf("\n");
+    std::vector<float> x_points = {0, 1, 3};
+    std::vector<float> y_points = {1, 5, 13};
+
+    // Initialize matrix for least squares
+    MatrixXd A(x_points.size(), 2);
+    VectorXd b(x_points.size());
+
+    // Fill the matrix A and vector b
+    for (int i = 0; i < x_points.size(); i++) {
+        A(i, 0) = x_points[i];
+        A(i, 1) = 1.0;
+        b(i) = y_points[i];
+    }
+
+    // Solve the least squares problem
+    Vector2d result = A.colPivHouseholderQr().solve(b);
+
+    // Result contains the slope (result[0]) and the intercept (result[1])
+    std::cout << "Slope: " << result[0] << ", Intercept: " << result[1] << "\n";
+    
     ros::spinOnce();
     ros::spin();
     return 0;
