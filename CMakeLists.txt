@@ -16,6 +16,11 @@ find_package(catkin REQUIRED COMPONENTS
   visualization_msgs
   roslib
   message_generation
+  tf2_msgs
+  tf2_ros
+  tf2_geometry_msgs
+  tf
+  sobit_navigation_library
 )
 
 ## System dependencies are found with CMake's conventions
@@ -206,6 +211,12 @@ target_link_libraries(cpp_lecture
   ${catkin_LIBRARIES}
   ${PYTHON_LIBRARIES}
   yaml-cpp
+)
+
+add_executable(pro_move_base src/pro_move_base.cpp)
+target_link_libraries(pro_move_base
+  ${catkin_LIBRARIES}
+  ${PYTHON_LIBRARIES}
 )
 ###
 

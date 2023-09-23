@@ -57,9 +57,9 @@ Visualization Manager:
       Marker Topic: /active_map
       Name: Marker
       Namespaces:
-        arrow: true
-        cube_list1: true
-        point_list1: true
+        laser_point: true
+        map: true
+        robot_position: true
       Queue Size: 100
       Value: true
   Enabled: true
@@ -99,7 +99,7 @@ Visualization Manager:
       Invert Z Axis: false
       Name: Current View
       Near Clip Distance: 0.009999999776482582
-      Scale: -149.13946533203125
+      Scale: -82.14276123046875
       Target Frame: <Fixed Frame>
       X: -0.12814605236053467
       Y: 0.34531542658805847

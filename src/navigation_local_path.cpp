@@ -41,21 +41,21 @@ class PARAM
         float min_speed_x = 0.00;
         float max_speed_y = 0.00;
         float min_speed_y =-0.00;
-        float max_angle = 80.0 * (M_PI/180.);
+        float max_angle = 50.0 * (M_PI/180.);
 
         // accel
         float max_accel_x = 0.30;
         float max_accel_y = 0.30;
-        float max_angle_accel = 80.0 * (M_PI/180.);
+        float max_angle_accel = 60.0 * (M_PI/180.);
 
         // weight
-        float velocity_weight = 1.5;
+        float velocity_weight = 1.0;
         float angle_weight = 1.0;
-        float obstacle_distance_weight = 0.4;
+        float obstacle_distance_weight = 1.0;
 
         // time
-        float delta_time = 0.15;
-        int predect_step = 4;
+        float delta_time = 0.1;
+        int predect_step = 6;
 
         // reso
         float speed_reso_x = 0.03;
@@ -63,7 +63,7 @@ class PARAM
         float speed_reso_ang = 5.0 * (M_PI/180.);
 
         // other
-        float robot_radius = 0.30;
+        float robot_radius = 0.35;
         float goal_position_range = 0.2;
         float local_position_range = 0.3;
         float goal_angle_range = 10.0 * (M_PI/180.);
@@ -265,8 +265,8 @@ class MOVE_CLASS
         MOVE_CLASS()
         {
             ros::NodeHandle node;
-            // pub_twist = node.advertise<geometry_msgs::Twist>("mobile_base/commands/velocity", 10);
-            pub_twist = node.advertise<geometry_msgs::Twist>("/cmd_vel", 10);
+            pub_twist = node.advertise<geometry_msgs::Twist>("mobile_base/commands/velocity", 10);
+            // pub_twist = node.advertise<geometry_msgs::Twist>("/cmd_vel", 10);
         }
         void straight_and_turn_time(float u_vel, float u_ang, float dt)
         {
@@ -686,6 +686,7 @@ class PATH_MOVING
                 pub_local_path.publish(local_path);
                 ros::spinOnce();
                 move_class.only_vel_pub(velocity);
+                ros::spinOnce();
                 ros::Duration(param.delta_time).sleep();
             }
             velocity.linear.x = 0.;

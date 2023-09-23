@@ -151,8 +151,8 @@ class OBSTACLE_DIST
     private:
         ros::Subscriber sub_dist;
         geometry_msgs::Point point;
-        // float lidar_pose[2] = {0.2, 0.0};
-        float lidar_pose[2] = {0.0, 0.0};
+        float lidar_pose[2] = {0.2, 0.0};
+        // float lidar_pose[2] = {0.0, 0.0};
         bool start_frag;
         void callback_obstacle(const sensor_msgs::LaserScan &ob)
         {
