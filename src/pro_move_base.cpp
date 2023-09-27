@@ -45,23 +45,26 @@ class PARAM
         // DWA
 
         // speed
-        float sum_max_speed = 0.25;
+        float sum_max_speed = 0.35;
         float sum_min_speed = 0.05;
-        float max_speed_x = 0.25;
+        float max_speed_x = 0.35;
         float min_speed_x = 0.00;
-        float max_speed_y = 0.00;
-        float min_speed_y =-0.00;
+        float max_speed_y = 0.20;
+        float min_speed_y =-0.20;
         float max_angle = 50.0 * (M_PI/180.);
+        float max_angle_y = 30.0 * (M_PI/180.);
 
         // accel
         float max_accel_x = 0.35;
         float max_accel_y = 0.30;
         float max_angle_accel = 60.0 * (M_PI/180.);
+        float max_angle_accel_y = 50.0 * (M_PI/180.);
 
         // weight
         float velocity_weight = 1.0;
         float angle_weight = 1.0;
         float obstacle_distance_weight = 1.0;
+        float trajectory_weight = 1.0;
 
         // time
         float delta_time = 0.1;
@@ -75,8 +78,9 @@ class PARAM
         // other
         float robot_radius = 0.35;
         float goal_position_range = 0.2;
-        float local_position_range = 0.3;
+        float local_position_range = 0.42;
         float goal_angle_range = 10.0 * (M_PI/180.);
+        float linear_y_angle_range = 38.0 * (M_PI/180.);
         // bool omni_base = false;
         // int local_goal_range = 5;
 };
@@ -468,7 +472,7 @@ class PATH_MOVING
                         }
                         catch ( const tf::TransformException& ex )
                         {
-                            ROS_ERROR( "%s",ex.what( ) );
+                            // ROS_ERROR( "%s",ex.what( ) );
                         }
                     }
                     if (global_path_basefootprint.size() == 0)
@@ -496,118 +500,307 @@ class PATH_MOVING
                     {
                         target_index = global_path_basefootprint.size() - 1;
                     }
+                    bool y_challenge = false;
                     for (int i=target_index; i<global_path_basefootprint.size(); i++)
                     {
-                        if ((-3. <= global_path_basefootprint[i].x) && (global_path_basefootprint[i].x <= 3.) && (-3. <= global_path_basefootprint[i].y) && (global_path_basefootprint[i].y <= 3.))
+                        if ((-1.5 <= global_path_basefootprint[i].x) && (global_path_basefootprint[i].x <= 1.5) && (-1.5 <= global_path_basefootprint[i].y) && (global_path_basefootprint[i].y <= 1.5))
                         {
                             potential_goal = i;
                         }
                         else
                         {
+                            if (1.5 < global_path_basefootprint[i].x)
+                            {
+                                y_challenge = true;
+                            }
                             break;
                         }
                     }
-                    ROS_INFO("ptg = %.3f, %.3f", global_path_basefootprint[potential_goal].x, global_path_basefootprint[potential_goal].y);
-                    dynamic_window(dw, velocity);
+                    // 
+                    // std::vector<float> x_points = {0, 1, 3};
+                    // std::vector<float> y_points = {1, 5, 13};
+                    // MatrixXd A(x_points.size(), 2);
+                    // VectorXd b(x_points.size());
+                    // for (int i = 0; i < x_points.size(); i++) {
+                    //     A(i, 0) = x_points[i];
+                    //     A(i, 1) = 1.0;
+                    //     b(i) = y_points[i];
+                    // }
+                    // Vector2d result = A.colPivHouseholderQr().solve(b);
+                    // std::cout << "Slope: " << result[0] << ", Intercept: " << result[1] << "\n";
+                    // 
+                    float local_goal_angle = 0.;
+                    int linaer_y_point = target_index;
+                    if (y_challenge)
+                    {
+                        MatrixXd A(target_index, 2);
+                        VectorXd b(target_index);
+                        for (int i=0; i<target_index; i++)
+                        {
+                            A(i, 0) = global_path_basefootprint[i].x;
+                            A(i, 1) = 1.0;
+                            b(i) = global_path_basefootprint[i].y;
+                        }
+                        Vector2d result = A.colPivHouseholderQr().solve(b);
+                        float path_angle = atan(result[0]);
+                        if (global_path_basefootprint[target_index].x < 0)
+                        {
+                            path_angle -= M_PI * (path_angle / std::fabs(path_angle));
+                        }
+                        if (std::fabs(path_angle) <= (M_PI / 2. - param.linear_y_angle_range))
+                        {
+                            y_challenge = false;
+                            // break;
+                        }
+                        // for (int i=target_index; i<global_path_basefootprint.size(); i++)
+                        // {
+                        //     if (2 <= i)
+                        //     {
+                        //         MatrixXd A(i+1, 2);
+                        //         VectorXd b(i+1);
+                        //         A(0, 0) = global_path_basefootprint[0].x;
+                        //         A(0, 1) = 1.0;
+                        //         b(0) = global_path_basefootprint[0].y;
+                        //         for (int j=target_index; j<=i; j++)
+                        //         {
+                        //             A(j - target_index + 1, 0) = global_path_basefootprint[j].x;
+                        //             A(j - target_index + 1, 1) = 1.0;
+                        //             b(j - target_index + 1) = global_path_basefootprint[j].y;
+                        //         }
+                        //         Vector2d result = A.colPivHouseholderQr().solve(b);
+                        //         float path_angle = atan(result[0]);
+                        //         if (global_path_basefootprint[target_index].x < 0)
+                        //         {
+                        //             path_angle -= M_PI * (path_angle / std::fabs(path_angle));
+                        //         }
+                        //         if ((std::fabs(path_angle) <= (M_PI / 2. - param.linear_y_angle_range)) && (target_index <= i))
+                        //         {
+                        //             y_challenge = false;
+                        //             break;
+                        //         }
+                        //     }
+                        // }
+                    }
                     std::vector<std::vector<TRAJECTORY_NODE>> path_cans;
                     std::vector<float> local_costs;
                     std::vector<geometry_msgs::Twist> velocitys;
-                    std::vector<TRAJECTORY_NODE> path_can;
-                    geometry_msgs::Twist vel;
-                    vel.linear.x = 0.;
-                    vel.linear.y = 0.;
-                    vel.linear.z = 0.;
-                    vel.angular.x = 0.;
-                    vel.angular.y = 0.;
-                    vel.angular.z = 0.;
-                    path_cans.clear();
-                    local_costs.clear();
-                    velocitys.clear();
-                    for (vel.linear.x=dw[0][0]; vel.linear.x<=dw[0][1]; vel.linear.x+=param.speed_reso_x)
+                    int best_index;
+                    if (y_challenge)
                     {
-                        for (vel.angular.z=dw[1][0]; vel.angular.z<=dw[1][1]; vel.angular.z+=param.speed_reso_ang)
+                        velocity.linear.x = 0.;
+                        dw[0][0] = velocity.linear.y;
+                        dw[0][1] = velocity.linear.y;
+                        dw[1][0] = velocity.angular.z;
+                        dw[1][1] = velocity.angular.z;
+                        dynamic_window_2(dw, velocity);
+                        std::vector<TRAJECTORY_NODE> path_can;
+                        geometry_msgs::Twist vel;
+                        vel.linear.x = 0.;
+                        vel.linear.y = 0.;
+                        vel.linear.z = 0.;
+                        vel.angular.x = 0.;
+                        vel.angular.y = 0.;
+                        vel.angular.z = 0.;
+                        path_cans.clear();
+                        local_costs.clear();
+                        velocitys.clear();
+                        for (vel.linear.y=dw[0][0]; vel.linear.y<=dw[0][1]; vel.linear.y+=param.speed_reso_y)
                         {
-                            path_can.clear();
-                            float local_cost = sim_motion(path_can, vel);
-                            if (((param.sum_max_speed*param.delta_time*param.predect_step) + 2*(param.robot_radius)) < local_cost)
+                            for (vel.angular.z=dw[1][0]; vel.angular.z<=dw[1][1]; vel.angular.z+=param.speed_reso_ang)
                             {
-                                local_cost = (param.sum_max_speed*param.delta_time*param.predect_step) + 2*(param.robot_radius);
-                            }
-                            path_cans.push_back(path_can);
-                            local_costs.push_back(local_cost);
-                            velocitys.push_back(vel);
-                        }
-                    }
-                    float sum_cost = std::numeric_limits<float>::max();
-                    int best_index = -1;
-                    for (int i=0; i<2; i++)
-                    {
-                        if (i==0)
-                        {
-                            for (int j=0; j<path_cans.size(); j++)
-                            {
-                                if (local_costs[j] < param.robot_radius)
+                                path_can.clear();
+                                float local_cost = sim_motion(path_can, vel);
+                                if (((param.sum_max_speed*param.delta_time*param.predect_step) + 2*(param.robot_radius)) < local_cost)
                                 {
-                                    continue;
+                                    local_cost = (param.sum_max_speed*param.delta_time*param.predect_step) + 2*(param.robot_radius);
                                 }
-                                float cost_vel, cost_ang, cost_dist;
-                                cost_vel = (param.sum_max_speed - sqrtf(powf(velocitys[j].linear.x, 2.) + powf(velocitys[j].linear.y, 2.))) / (param.sum_max_speed);
-                                cost_ang = acos((cos(path_cans[j][path_cans[j].size()-1].angle)*(global_path_basefootprint[target_index].x) + sin(path_cans[j][path_cans[j].size()-1].angle)*(global_path_basefootprint[target_index].y)) / sqrtf(powf((global_path_basefootprint[target_index].x), 2.) + powf((global_path_basefootprint[target_index].y), 2.))) / (M_PI);
-                                cost_dist = ((param.sum_max_speed*param.delta_time*param.predect_step) + 2*(param.robot_radius) - local_costs[j]) / ((param.sum_max_speed*param.delta_time*param.predect_step) + 1*(param.robot_radius));
-                                cost_vel *= param.velocity_weight;
-                                cost_ang *= param.angle_weight;
-                                cost_dist *= param.obstacle_distance_weight;
-                                if ((cost_vel + cost_ang + cost_dist) <= sum_cost)
-                                {
-                                    sum_cost = cost_vel + cost_ang + cost_dist;
-                                    best_index = j;
-                                }
+                                path_cans.push_back(path_can);
+                                local_costs.push_back(local_cost);
+                                velocitys.push_back(vel);
                             }
                         }
-                        else
+                        float sum_cost = std::numeric_limits<float>::max();
+                        best_index = -1;
+                        for (int i=0; i<2; i++)
                         {
-                            sum_cost = (-1)*std::numeric_limits<float>::max();
-                            float sum_cost_vel = std::numeric_limits<float>::max();
-                            float sum_cost_ang = std::numeric_limits<float>::max();
-                            float sum_cost_dist = std::numeric_limits<float>::max();
-                            for (int j=0; j<path_cans.size(); j++)
+                            if (i==0)
                             {
-                                float cost_vel, cost_ang, cost_dist;
-                                cost_vel = (param.sum_max_speed - sqrtf(powf(velocitys[j].linear.x, 2.) + powf(velocitys[j].linear.y, 2.))) / (param.sum_max_speed);
-                                cost_ang = acos((cos(path_cans[j][path_cans[j].size()-1].angle)*(global_path_basefootprint[target_index].x) + sin(path_cans[j][path_cans[j].size()-1].angle)*(global_path_basefootprint[target_index].y)) / sqrtf(powf((global_path_basefootprint[target_index].x), 2.) + powf((global_path_basefootprint[target_index].y), 2.))) / (M_PI);
-                                cost_dist = ((param.sum_max_speed*param.delta_time*param.predect_step) + 2*(param.robot_radius) - local_costs[j]) / ((param.sum_max_speed*param.delta_time*param.predect_step) + 1*(param.robot_radius));
-                                if (cost_dist <= sum_cost_dist)
+                                for (int j=0; j<path_cans.size(); j++)
                                 {
-                                    if (std::fabs(cost_dist - sum_cost_dist) <= 0.01)
+                                    if (local_costs[j] < param.robot_radius)
                                     {
-                                        if (cost_ang <= sum_cost_ang)
-                                        {
-                                            if (std::fabs(cost_ang - sum_cost_ang) <= 0.01)
-                                            {
-                                                if (cost_vel <= sum_cost_vel)
-                                                {
-                                                    sum_cost_vel = cost_vel;
-                                                    best_index = j;
-                                                }
-                                            }
-                                            else
-                                            {
-                                                sum_cost_ang = cost_ang;
-                                                best_index = j;
-                                            }
-                                        }
+                                        continue;
                                     }
-                                    else
+                                    float cost_vel, cost_ang, cost_dist, cost_traj;
+                                    cost_vel = (param.sum_max_speed - sqrtf(powf(velocitys[j].linear.x, 2.) + powf(velocitys[j].linear.y, 2.))) / (param.sum_max_speed);
+                                    cost_ang = acos((cos(path_cans[j][path_cans[j].size()-1].angle)*(global_path_basefootprint[target_index].x) + sin(path_cans[j][path_cans[j].size()-1].angle)*(global_path_basefootprint[target_index].y)) / sqrtf(powf((global_path_basefootprint[target_index].x), 2.) + powf((global_path_basefootprint[target_index].y), 2.))) / (M_PI);
+                                    cost_dist = ((param.sum_max_speed*param.delta_time*param.predect_step) + 2*(param.robot_radius) - local_costs[j]) / ((param.sum_max_speed*param.delta_time*param.predect_step) + 1*(param.robot_radius));
+                                    cost_traj = last_position(velocitys[j], global_path_basefootprint[target_index]);
+                                    cost_vel *= param.velocity_weight;
+                                    cost_ang *= param.angle_weight;
+                                    cost_dist *= param.obstacle_distance_weight;
+                                    cost_traj *= param.trajectory_weight;
+                                    if ((cost_vel + cost_ang + cost_dist + cost_traj) <= sum_cost)
                                     {
-                                        sum_cost_dist = cost_dist;
+                                        sum_cost = cost_vel + cost_ang + cost_dist + cost_traj;
                                         best_index = j;
                                     }
                                 }
                             }
+                            else
+                            {
+                                sum_cost = (-1)*std::numeric_limits<float>::max();
+                                float sum_cost_vel = std::numeric_limits<float>::max();
+                                float sum_cost_ang = std::numeric_limits<float>::max();
+                                float sum_cost_dist = std::numeric_limits<float>::max();
+                                for (int j=0; j<path_cans.size(); j++)
+                                {
+                                    float cost_vel, cost_ang, cost_dist;
+                                    cost_vel = (param.sum_max_speed - sqrtf(powf(velocitys[j].linear.x, 2.) + powf(velocitys[j].linear.y, 2.))) / (param.sum_max_speed);
+                                    cost_ang = acos((cos(path_cans[j][path_cans[j].size()-1].angle)*(global_path_basefootprint[target_index].x) + sin(path_cans[j][path_cans[j].size()-1].angle)*(global_path_basefootprint[target_index].y)) / sqrtf(powf((global_path_basefootprint[target_index].x), 2.) + powf((global_path_basefootprint[target_index].y), 2.))) / (M_PI);
+                                    cost_dist = ((param.sum_max_speed*param.delta_time*param.predect_step) + 2*(param.robot_radius) - local_costs[j]) / ((param.sum_max_speed*param.delta_time*param.predect_step) + 1*(param.robot_radius));
+                                    if (cost_dist <= sum_cost_dist)
+                                    {
+                                        if (std::fabs(cost_dist - sum_cost_dist) <= 0.01)
+                                        {
+                                            if (cost_ang <= sum_cost_ang)
+                                            {
+                                                if (std::fabs(cost_ang - sum_cost_ang) <= 0.01)
+                                                {
+                                                    if (cost_vel <= sum_cost_vel)
+                                                    {
+                                                        sum_cost_vel = cost_vel;
+                                                        best_index = j;
+                                                    }
+                                                }
+                                                else
+                                                {
+                                                    sum_cost_ang = cost_ang;
+                                                    best_index = j;
+                                                }
+                                            }
+                                        }
+                                        else
+                                        {
+                                            sum_cost_dist = cost_dist;
+                                            best_index = j;
+                                        }
+                                    }
+                                }
+                            }
+                            if (best_index != -1)
+                            {
+                                break;
+                            }
                         }
-                        if (best_index != -1)
+                    }
+                    else
+                    {
+                        velocity.linear.y = 0.;
+                        dw[0][0] = velocity.linear.x;
+                        dw[0][1] = velocity.linear.x;
+                        dw[1][0] = velocity.angular.z;
+                        dw[1][1] = velocity.angular.z;
+                        dynamic_window(dw, velocity);
+                        std::vector<TRAJECTORY_NODE> path_can;
+                        geometry_msgs::Twist vel;
+                        vel.linear.x = 0.;
+                        vel.linear.y = 0.;
+                        vel.linear.z = 0.;
+                        vel.angular.x = 0.;
+                        vel.angular.y = 0.;
+                        vel.angular.z = 0.;
+                        path_cans.clear();
+                        local_costs.clear();
+                        velocitys.clear();
+                        for (vel.linear.x=dw[0][0]; vel.linear.x<=dw[0][1]; vel.linear.x+=param.speed_reso_x)
                         {
-                            break;
+                            for (vel.angular.z=dw[1][0]; vel.angular.z<=dw[1][1]; vel.angular.z+=param.speed_reso_ang)
+                            {
+                                path_can.clear();
+                                float local_cost = sim_motion(path_can, vel);
+                                if (((param.sum_max_speed*param.delta_time*param.predect_step) + 2*(param.robot_radius)) < local_cost)
+                                {
+                                    local_cost = (param.sum_max_speed*param.delta_time*param.predect_step) + 2*(param.robot_radius);
+                                }
+                                path_cans.push_back(path_can);
+                                local_costs.push_back(local_cost);
+                                velocitys.push_back(vel);
+                            }
+                        }
+                        float sum_cost = std::numeric_limits<float>::max();
+                        best_index = -1;
+                        for (int i=0; i<2; i++)
+                        {
+                            if (i==0)
+                            {
+                                for (int j=0; j<path_cans.size(); j++)
+                                {
+                                    if (local_costs[j] < param.robot_radius)
+                                    {
+                                        continue;
+                                    }
+                                    float cost_vel, cost_ang, cost_dist, cost_traj;
+                                    cost_vel = (param.sum_max_speed - sqrtf(powf(velocitys[j].linear.x, 2.) + powf(velocitys[j].linear.y, 2.))) / (param.sum_max_speed);
+                                    cost_ang = acos((cos(path_cans[j][path_cans[j].size()-1].angle)*(global_path_basefootprint[target_index].x) + sin(path_cans[j][path_cans[j].size()-1].angle)*(global_path_basefootprint[target_index].y)) / sqrtf(powf((global_path_basefootprint[target_index].x), 2.) + powf((global_path_basefootprint[target_index].y), 2.))) / (M_PI);
+                                    cost_dist = ((param.sum_max_speed*param.delta_time*param.predect_step) + 2*(param.robot_radius) - local_costs[j]) / ((param.sum_max_speed*param.delta_time*param.predect_step) + 1*(param.robot_radius));
+                                    cost_traj = last_position(velocitys[j], global_path_basefootprint[target_index]);
+                                    cost_vel *= param.velocity_weight;
+                                    cost_ang *= param.angle_weight;
+                                    cost_dist *= param.obstacle_distance_weight;
+                                    cost_traj *= param.trajectory_weight;
+                                    if ((cost_vel + cost_ang + cost_dist + cost_traj) <= sum_cost)
+                                    {
+                                        sum_cost = cost_vel + cost_ang + cost_dist + cost_traj;
+                                        best_index = j;
+                                    }
+                                }
+                            }
+                            else
+                            {
+                                sum_cost = (-1)*std::numeric_limits<float>::max();
+                                float sum_cost_vel = std::numeric_limits<float>::max();
+                                float sum_cost_ang = std::numeric_limits<float>::max();
+                                float sum_cost_dist = std::numeric_limits<float>::max();
+                                for (int j=0; j<path_cans.size(); j++)
+                                {
+                                    float cost_vel, cost_ang, cost_dist;
+                                    cost_vel = (param.sum_max_speed - sqrtf(powf(velocitys[j].linear.x, 2.) + powf(velocitys[j].linear.y, 2.))) / (param.sum_max_speed);
+                                    cost_ang = acos((cos(path_cans[j][path_cans[j].size()-1].angle)*(global_path_basefootprint[target_index].x) + sin(path_cans[j][path_cans[j].size()-1].angle)*(global_path_basefootprint[target_index].y)) / sqrtf(powf((global_path_basefootprint[target_index].x), 2.) + powf((global_path_basefootprint[target_index].y), 2.))) / (M_PI);
+                                    cost_dist = ((param.sum_max_speed*param.delta_time*param.predect_step) + 2*(param.robot_radius) - local_costs[j]) / ((param.sum_max_speed*param.delta_time*param.predect_step) + 1*(param.robot_radius));
+                                    if (cost_dist <= sum_cost_dist)
+                                    {
+                                        if (std::fabs(cost_dist - sum_cost_dist) <= 0.01)
+                                        {
+                                            if (cost_ang <= sum_cost_ang)
+                                            {
+                                                if (std::fabs(cost_ang - sum_cost_ang) <= 0.01)
+                                                {
+                                                    if (cost_vel <= sum_cost_vel)
+                                                    {
+                                                        sum_cost_vel = cost_vel;
+                                                        best_index = j;
+                                                    }
+                                                }
+                                                else
+                                                {
+                                                    sum_cost_ang = cost_ang;
+                                                    best_index = j;
+                                                }
+                                            }
+                                        }
+                                        else
+                                        {
+                                            sum_cost_dist = cost_dist;
+                                            best_index = j;
+                                        }
+                                    }
+                                }
+                            }
+                            if (best_index != -1)
+                            {
+                                break;
+                            }
                         }
                     }
                     if (best_index == -1)
@@ -637,6 +830,7 @@ class PATH_MOVING
                     }
                     ros::spinOnce();
                     move_class.only_vel_pub(velocity);
+                    ros::Duration(param.delta_time).sleep();
                 }
                 else
                 {
@@ -686,6 +880,25 @@ class PATH_MOVING
         {
             double dw1[2][2] = {{param.min_speed_x                                , param.max_speed_x                                },{(param.max_angle)*(-1)                                , param.max_angle                                       }};
             double dw2[2][2] = {{vel.linear.x - param.max_accel_x*param.delta_time, vel.linear.x + param.max_accel_x*param.delta_time},{vel.angular.z - param.max_angle_accel*param.delta_time, vel.angular.z + param.max_angle_accel*param.delta_time}};
+            for (int i=0; i<2; i++)
+            {
+                for (int j=0; j<2; j++)
+                {
+                    if (((dw1[i][j] < dw2[i][j]) && (j==0)) || ((dw2[i][j] < dw1[i][j]) && (j==1)))
+                    {
+                        dw[i][j] = dw2[i][j];
+                    }
+                    else
+                    {
+                        dw[i][j] = dw1[i][j];
+                    }
+                }
+            }
+        }
+        void dynamic_window_2(double dw[2][2], geometry_msgs::Twist vel)
+        {
+            double dw1[2][2] = {{param.min_speed_y                                , param.max_speed_y                                },{(param.max_angle_y)*(-1)                                , param.max_angle_y                                       }};
+            double dw2[2][2] = {{vel.linear.y - param.max_accel_y*param.delta_time, vel.linear.y + param.max_accel_y*param.delta_time},{vel.angular.z - param.max_angle_accel_y*param.delta_time, vel.angular.z + param.max_angle_accel_y*param.delta_time}};
             for (int i=0; i<2; i++)
             {
                 for (int j=0; j<2; j++)
@@ -770,62 +983,62 @@ class PATH_MOVING
             }
             return min_cost;
         }
-        // float last_position(geometry_msgs::Point robot_pt, float robot_angle, geometry_msgs::Twist v)
-        // {
-        //     std::vector<TRAJECTORY_NODE> path_can;
-        //     TRAJECTORY_NODE pt;
-        //     pt.node.x = robot_pt.x;
-        //     pt.node.y = robot_pt.y;
-        //     pt.node.z = 0.;
-        //     pt.angle = robot_angle;
-        //     float min_cost = std::numeric_limits<float>::max();
-        //     float theta = robot_angle + atan2(v.linear.y * param.delta_time, v.linear.x * param.delta_time);
-        //     if ((v.angular.z == 0.) || (sqrtf(powf(v.linear.x, 2.) + powf(v.linear.y, 2.)) == 0.))
-        //     {
-        //         if ((sqrtf(powf(v.linear.x, 2.) + powf(v.linear.y, 2.)) == 0.))
-        //         {
-        //             for (int i=0; i<param.predect_step; i++)
-        //             {
-        //                 pt.angle += v.angular.z * param.delta_time;
-        //                 path_can.push_back(pt);
-        //             }
-        //         }
-        //         else
-        //         {
-        //             for (int i=0; i<param.predect_step; i++)
-        //             {
-        //                 pt.node.x += sqrtf(powf(v.linear.x * param.delta_time, 2.) + powf(v.linear.y * param.delta_time, 2.)) * cos(theta);
-        //                 pt.node.y += sqrtf(powf(v.linear.x * param.delta_time, 2.) + powf(v.linear.y * param.delta_time, 2.)) * sin(theta);
-        //                 path_can.push_back(pt);
-        //             }
-        //         }
-        //     }
-        //     else
-        //     {
-        //         float base_angle = robot_angle + atan2(v.linear.y * param.delta_time, v.linear.x * param.delta_time) + (M_PI / 2.)*((v.angular.z * param.delta_time) / std::fabs(v.angular.z * param.delta_time));
-        //         float circle_radius = (sqrtf(powf(v.linear.x * param.delta_time, 2.) + powf(v.linear.y * param.delta_time, 2.))) / std::fabs(v.angular.z * param.delta_time);
-        //         geometry_msgs::Point circle_pt;
-        //         circle_pt.x = robot_pt.x + circle_radius * cos(base_angle);
-        //         circle_pt.y = robot_pt.y + circle_radius * sin(base_angle);
-        //         for (int i=0; i<param.predect_step; i++)
-        //         {
-        //             float temp_x = pt.node.x;
-        //             float temp_y = pt.node.y;
-        //             pt.node.x = (temp_x - circle_pt.x) * cos(v.angular.z * param.delta_time) - (temp_y - circle_pt.y) * sin(v.angular.z * param.delta_time) + circle_pt.x;
-        //             pt.node.y = (temp_x - circle_pt.x) * sin(v.angular.z * param.delta_time) + (temp_y - circle_pt.y) * cos(v.angular.z * param.delta_time) + circle_pt.y;
-        //             pt.angle += v.angular.z * param.delta_time;
-        //             path_can.push_back(pt);
-        //         }
-        //     }
-        //     for (int i=0; i<obstacle_dist.range_point.size(); i++)
-        //     {
-        //         if (euclidean_distance(path_can[path_can.size()-1].node.x, path_can[path_can.size()-1].node.y, obstacle_dist.range_point[i].x, obstacle_dist.range_point[i].y) < min_cost)
-        //         {
-        //             min_cost = euclidean_distance(path_can[path_can.size()-1].node.x, path_can[path_can.size()-1].node.y, obstacle_dist.range_point[i].x, obstacle_dist.range_point[i].y);
-        //         }
-        //     }
-        //     return min_cost;
-        // }
+        float last_position(geometry_msgs::Twist v, geometry_msgs::Point t_pt)
+        {
+            std::vector<TRAJECTORY_NODE> path_can;
+            TRAJECTORY_NODE pt;
+            pt.node.x = 0.;
+            pt.node.y = 0.;
+            pt.node.z = 0.;
+            pt.angle = 0.;
+            // float min_cost = std::numeric_limits<float>::max();
+            float theta = atan2(v.linear.y * param.delta_time, v.linear.x * param.delta_time);
+            if ((v.angular.z == 0.) || (sqrtf(powf(v.linear.x, 2.) + powf(v.linear.y, 2.)) == 0.))
+            {
+                if ((sqrtf(powf(v.linear.x, 2.) + powf(v.linear.y, 2.)) == 0.))
+                {
+                    for (int i=0; i<param.predect_step; i++)
+                    {
+                        pt.angle += v.angular.z * param.delta_time;
+                        path_can.push_back(pt);
+                    }
+                }
+                else
+                {
+                    for (int i=0; i<param.predect_step; i++)
+                    {
+                        pt.node.x += sqrtf(powf(v.linear.x * param.delta_time, 2.) + powf(v.linear.y * param.delta_time, 2.)) * cos(theta);
+                        pt.node.y += sqrtf(powf(v.linear.x * param.delta_time, 2.) + powf(v.linear.y * param.delta_time, 2.)) * sin(theta);
+                        path_can.push_back(pt);
+                    }
+                }
+            }
+            else
+            {
+                float base_angle = atan2(v.linear.y * param.delta_time, v.linear.x * param.delta_time) + (M_PI / 2.)*((v.angular.z * param.delta_time) / std::fabs(v.angular.z * param.delta_time));
+                float circle_radius = (sqrtf(powf(v.linear.x * param.delta_time, 2.) + powf(v.linear.y * param.delta_time, 2.))) / std::fabs(v.angular.z * param.delta_time);
+                geometry_msgs::Point circle_pt;
+                circle_pt.x = circle_radius * cos(base_angle);
+                circle_pt.y = circle_radius * sin(base_angle);
+                for (int i=0; i<param.predect_step; i++)
+                {
+                    float temp_x = pt.node.x;
+                    float temp_y = pt.node.y;
+                    pt.node.x = (temp_x - circle_pt.x) * cos(v.angular.z * param.delta_time) - (temp_y - circle_pt.y) * sin(v.angular.z * param.delta_time) + circle_pt.x;
+                    pt.node.y = (temp_x - circle_pt.x) * sin(v.angular.z * param.delta_time) + (temp_y - circle_pt.y) * cos(v.angular.z * param.delta_time) + circle_pt.y;
+                    pt.angle += v.angular.z * param.delta_time;
+                    path_can.push_back(pt);
+                }
+            }
+            // for (int i=0; i<obstacle_dist.range_point.size(); i++)
+            // {
+            //     if (euclidean_distance(path_can[path_can.size()-1].node.x, path_can[path_can.size()-1].node.y, obstacle_dist.range_point[i].x, obstacle_dist.range_point[i].y) < min_cost)
+            //     {
+            //         min_cost = euclidean_distance(path_can[path_can.size()-1].node.x, path_can[path_can.size()-1].node.y, obstacle_dist.range_point[i].x, obstacle_dist.range_point[i].y);
+            //     }
+            // }
+            return euclidean_distance(path_can[path_can.size()-1].node.x, path_can[path_can.size()-1].node.y, t_pt.x, t_pt.y);
+        }
         float euclidean_distance(float x0, float y0, float x1, float y1)
         {
             return (sqrtf(powf((x1 - x0), 2.) + powf((y1 - y0), 2.)));

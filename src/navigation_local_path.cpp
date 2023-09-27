@@ -265,8 +265,8 @@ class MOVE_CLASS
         MOVE_CLASS()
         {
             ros::NodeHandle node;
-            pub_twist = node.advertise<geometry_msgs::Twist>("mobile_base/commands/velocity", 10);
-            // pub_twist = node.advertise<geometry_msgs::Twist>("/cmd_vel", 10);
+            // pub_twist = node.advertise<geometry_msgs::Twist>("mobile_base/commands/velocity", 10);
+            pub_twist = node.advertise<geometry_msgs::Twist>("/cmd_vel", 10);
         }
         void straight_and_turn_time(float u_vel, float u_ang, float dt)
         {
