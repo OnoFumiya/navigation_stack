@@ -31,7 +31,6 @@
 #include <tf2_msgs/TFMessage.h>
 #include <nav_msgs/Path.h>
 #include <tf/transform_listener.h>
-#include <sobit_navigation_library/sobit_navigation_library.hpp>
 
 #include <cstring>
 #include <algorithm>

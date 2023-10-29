@@ -13,6 +13,8 @@ find_package(catkin REQUIRED COMPONENTS
   rospy
   std_msgs
   geometry_msgs
+  dr_spaam_ros
+  eigen_conversions
   visualization_msgs
   roslib
   message_generation
@@ -20,7 +22,6 @@ find_package(catkin REQUIRED COMPONENTS
   tf2_ros
   tf2_geometry_msgs
   tf
-  sobit_navigation_library
 )
 
 ## System dependencies are found with CMake's conventions
@@ -62,6 +63,7 @@ add_message_files(
   MapInformation.msg
   ExpansionPoints.msg
   PathPoint.msg
+  WalkLegPoint.msg
 )
 
 ## Generate services in the 'srv' folder
@@ -116,7 +118,7 @@ generate_messages(
 catkin_package(
  INCLUDE_DIRS include
 #  LIBRARIES navigation_stack
- CATKIN_DEPENDS roscpp rospy std_msgs geometry_msgs visualization_msgs message_runtime
+ CATKIN_DEPENDS roscpp rospy std_msgs geometry_msgs dr_spaam_ros eigen_conversions visualization_msgs message_runtime
 #  DEPENDS system_lib
 )
 
@@ -171,18 +173,6 @@ target_link_libraries(expansion_pointer
   ${PYTHON_LIBRARIES}
 )
 
-# add_executable(mapping_create src/mapping_create.cpp)
-# target_link_libraries(mapping_create
-# ${catkin_LIBRARIES}
-# ${PYTHON_LIBRARIES}
-# )
-
-# add_executable(mapping_localization src/mapping_localization.cpp)
-# target_link_libraries(mapping_localization
-# ${catkin_LIBRARIES}
-# ${PYTHON_LIBRARIES}
-# )
-
 add_executable(plot src/plot.cpp)
 target_link_libraries(plot
   ${catkin_LIBRARIES}
@@ -195,18 +185,6 @@ target_link_libraries(map_saver
   yaml-cpp
 )
 
-# add_executable(mapping_control src/mapping_control.cpp)
-# target_link_libraries(mapping_control
-# ${catkin_LIBRARIES}
-# ${PYTHON_LIBRARIES}
-# )
-
-# add_executable(mapping_presentation src/mapping_presentation.cpp)
-# target_link_libraries(mapping_presentation
-# ${catkin_LIBRARIES}
-# ${PYTHON_LIBRARIES}
-# )
-
 add_executable(cpp_lecture src/cpp_lecture.cpp)
 target_link_libraries(cpp_lecture
   ${catkin_LIBRARIES}
@@ -218,6 +196,16 @@ add_executable(pro_move_base src/pro_move_base.cpp)
 target_link_libraries(pro_move_base
   ${catkin_LIBRARIES}
   ${PYTHON_LIBRARIES}
+)
+
+add_executable(leg_plot src/leg_plot.cpp)
+target_link_libraries(leg_plot
+  ${catkin_LIBRARIES}
+)
+
+add_executable(leg_point_publisher src/leg_point_publisher.cpp)
+target_link_libraries(leg_point_publisher
+  ${catkin_LIBRARIES}
 )
 ###
 
