@@ -71,7 +71,7 @@ class HUMAN_DETECT
                 point.z = 0.2;
                 if ((msg.scan.range_min <= sqrtf(powf(point.x, 2.) + powf(point.y, 2.))) && (sqrtf(powf(point.x, 2.) + powf(point.y, 2.)) <= msg.scan.range_max))
                 {
-                    leg_points_base.push_back(point)
+                    leg_points_base.push_back(point);
                     leg_points.push_back(Pointtransform("base_footprint", "map", point));
                 }
             }
