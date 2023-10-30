@@ -9,6 +9,7 @@
 #include <cmath>
 #include <geometry_msgs/Twist.h>
 #include <sensor_msgs/LaserScan.h>
+#include <sensor_msgs/PointCloud.h>
 #include <Eigen/Geometry>
 #include <navigation_stack/WalkLegPoint.h>
 
@@ -62,6 +63,7 @@ class PLOT
         ros::Publisher pub_marker_leg2;
         ros::Publisher pub_marker_leg3;
         ros::Publisher pub_marker_leg_next;
+        ros::Publisher pub_leg_cost;
         ros::Subscriber removal_scan_sub;
         ros::Subscriber legs_sub;
         RvizMarkerLibrary marker_lib;
@@ -84,6 +86,7 @@ class PLOT
         navigation_stack::WalkLegPoint leg_points_steps;
         std::vector<std::vector<int>> index_combination;
         // int combination[sampling_step];
+        sensor_msgs::PointCloud pcl;
         Eigen::Quaterniond thetaToQuaternion(double theta)
         {
             // 角度と軸ベクトルを指定してAngleAxisを作成
@@ -123,6 +126,17 @@ class PLOT
             copy(wlp.point2.begin(), wlp.point2.end(), leg_points_steps.point2.begin());
             copy(wlp.point3.begin(), wlp.point3.end(), leg_points_steps.point3.begin());
             copy(wlp.point_next.begin(), wlp.point_next.end(), leg_points_steps.point_next.begin());
+            pcl.header.stamp = ros::Time::now();
+            pcl.header.frame_id = "base_footprint";
+            pcl.points.clear();
+            for (int i=0; i<leg_points_steps.point_next.size(); i++)
+            {
+                geometry_msgs::Point32 pt;
+                pt.x = leg_points_steps.point_next[i].x;
+                pt.y = leg_points_steps.point_next[i].y;
+                pt.z = leg_points_steps.point_next[i].z;
+                pcl.points.push_back(pt);
+            }
             start_flag_leg = true;
         }
     public:
@@ -149,6 +163,7 @@ class PLOT
             pub_marker_leg2 = nh.advertise<visualization_msgs::Marker>("/dr_spaam_navigation/leg_point_step2", 10);
             pub_marker_leg3 = nh.advertise<visualization_msgs::Marker>("/dr_spaam_navigation/leg_point_step3", 10);
             pub_marker_leg_next = nh.advertise<visualization_msgs::Marker>("/dr_spaam_navigation/leg_point_nextstep", 10);
+            pub_leg_cost = nh.advertise<sensor_msgs::PointCloud>("/dr_spaam_navigation/leg_cost", 10);
             defalt_pose.position.x = 0.0;
             defalt_pose.position.y = 0.0;
             defalt_pose.position.z = 0.0;
@@ -205,6 +220,7 @@ class PLOT
                 pub_marker_leg3.publish( marker_lib.makeMarkerList( visualization_msgs::Marker::SPHERE_LIST, "base_footprint", "point_list3", defalt_pose, leg_points_steps.point3, cylinder_scale, cube_colors, ros::Duration(1) ) );
                 cube_colors.assign(leg_points_steps.point_next.size(),yellow_color);
                 pub_marker_leg_next.publish( marker_lib.makeMarkerList( visualization_msgs::Marker::SPHERE_LIST, "base_footprint", "point_next", defalt_pose, leg_points_steps.point_next, cylinder_scale, cube_colors, ros::Duration(1) ) );
+                pub_leg_cost.publish(pcl);
                 ros::spinOnce();
             }
         }

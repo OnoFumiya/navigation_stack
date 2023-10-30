@@ -34,7 +34,7 @@ class HUMAN_DETECT
         float detect_range_time = 0.1;
         bool start_flag;
         std::vector<geometry_msgs::Point> leg_points;
-        geometry_msgs::Point transformPoint(const std::string& org_frame, const std::string& target_frame, const geometry_msgs::Point& point)
+        geometry_msgs::Point Pointtransform(const std::string& org_frame, const std::string& target_frame, const geometry_msgs::Point& point)
         {
             geometry_msgs::PointStamped ptstanp_transformed;
             geometry_msgs::PointStamped ptstanp;
@@ -231,6 +231,23 @@ class HUMAN_DETECT
                     }
                 }
 
+
+                for (int i=0; i<leg_points_steps.point1.size(); i++)
+                {
+                    leg_points_steps.point1[i] = Pointtransform("base_footprint", "map", leg_points_steps.point1[i]);
+                }
+                for (int i=0; i<leg_points_steps.point2.size(); i++)
+                {
+                    leg_points_steps.point2[i] = Pointtransform("base_footprint", "map", leg_points_steps.point2[i]);
+                }
+                for (int i=0; i<leg_points_steps.point3.size(); i++)
+                {
+                    leg_points_steps.point3[i] = Pointtransform("base_footprint", "map", leg_points_steps.point3[i]);
+                }
+                // for (int i=0; i<leg_points_steps.point_next.size(); i++)
+                // {
+                //     leg_points_steps.point_next[i] = Pointtransform("base_footprint", "map", leg_points_steps.point_next[i]);
+                // }
                 leg_points_steps.point_next.clear();
                 for (int i=0; i<leg_points_steps.point3.size(); i++)
                 {
@@ -244,6 +261,22 @@ class HUMAN_DETECT
                             leg_points_steps.point_next.push_back(leg_point_temp);
                         }
                     }
+                }
+                for (int i=0; i<leg_points_steps.point1.size(); i++)
+                {
+                    leg_points_steps.point1[i] = Pointtransform("map", "base_footprint", leg_points_steps.point1[i]);
+                }
+                for (int i=0; i<leg_points_steps.point2.size(); i++)
+                {
+                    leg_points_steps.point2[i] = Pointtransform("map", "base_footprint", leg_points_steps.point2[i]);
+                }
+                for (int i=0; i<leg_points_steps.point3.size(); i++)
+                {
+                    leg_points_steps.point3[i] = Pointtransform("map", "base_footprint", leg_points_steps.point3[i]);
+                }
+                for (int i=0; i<leg_points_steps.point_next.size(); i++)
+                {
+                    leg_points_steps.point_next[i] = Pointtransform("map", "base_footprint", leg_points_steps.point_next[i]);
                 }
                 pub_walk_leg.publish(leg_points_steps);
                 ros::spinOnce();

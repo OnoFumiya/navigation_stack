@@ -29,7 +29,7 @@ def main(vel_x, vel_y, range_m):
     while not rospy.is_shutdown():                                              # このプログラムがROSとして起動している間、29行目~34行目を回り続ける
         pub.publish(vel)                                                        # 17行目で宣言したとおり、速度を発行している
         distance = math.sqrt((current_x - init_x)**2 + (current_y - init_y)**2) # distanceに、現在の位置と、初期位置との距離を三平方から計算している
-        file_name = str("/home/sobits/catkin_ws/src/fumifumi2.csv")
+        file_name = str("/home/sobits/catkin_ws/src/fumifumi.csv")
         f = open(file_name, 'a') # 書き込みモードで開く
         msg_time = rospy.Time.now()
         txt_output_str  = str(msg_time) + "," # 時間の挿入
@@ -49,8 +49,8 @@ if __name__ == '__main__':
     rospy.init_node('move_1meter_develop')                                          # このプログラムを任意のノード名で登録する
     pub = rospy.Publisher('/mobile_base/commands/velocity', Twist, queue_size= 10 ) # ロボットの速度を求めているTopic('/mobile_base/commands/velocity')にTwist型のメッセージをPublishすることを宣言
     sub = rospy.Subscriber('/odom', Odometry, callback_odom)                        # ロボットの位置を示しているTopic('/odom')にOdometry型のメッセージを取得することを宣言
-    main(0.05, 0.0, 2.0)
-    main(0.12, 0.0, 2.0)
+    main(0.05, 0.0, 1.0)
+    main(0.10, 0.0, 1.0)
     zero_vel = Twist()                           # 速度を送るための変数をTwist型で宣言
     zero_vel.linear.x = 0.0                      # ロボットから見て並進前方方向に0.0[m/s]の速度を変数に代入
     zero_vel.linear.y = 0.0                      # ロボットから見て並進前方方向に0.0[m/s]の速度を変数に代入
