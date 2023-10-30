@@ -34,6 +34,7 @@ class HUMAN_DETECT
         float detect_range_time = 0.1;
         bool start_flag;
         std::vector<geometry_msgs::Point> leg_points;
+        std::vector<geometry_msgs::Point> leg_points_base;
         geometry_msgs::Point Pointtransform(const std::string& org_frame, const std::string& target_frame, const geometry_msgs::Point& point)
         {
             geometry_msgs::PointStamped ptstanp_transformed;
@@ -61,6 +62,7 @@ class HUMAN_DETECT
         void callback_leg(const dr_spaam_ros::LegPoseArray &msg)
         {
             leg_points.clear();
+            leg_points_base.clear();
             geometry_msgs::Point point;
             for (int i=0; i<msg.poses.size(); i++)
             {
@@ -69,7 +71,8 @@ class HUMAN_DETECT
                 point.z = 0.2;
                 if ((msg.scan.range_min <= sqrtf(powf(point.x, 2.) + powf(point.y, 2.))) && (sqrtf(powf(point.x, 2.) + powf(point.y, 2.)) <= msg.scan.range_max))
                 {
-                    leg_points.push_back(point);
+                    leg_points_base.push_back(point)
+                    leg_points.push_back(Pointtransform("base_footprint", "map", point));
                 }
             }
 
@@ -91,9 +94,9 @@ class HUMAN_DETECT
             {
                 if ((msg.scan.range_min <= msg.scan.ranges[i]) && (msg.scan.ranges[i] <= msg.scan.range_max))
                 {
-                    for (int j=0; j<leg_points.size(); j++)
+                    for (int j=0; j<leg_points_base.size(); j++)
                     {
-                        if (sqrtf(powf((msg.scan.ranges[i]*(cos(msg.scan.angle_min + range_angle_increment*i)) + lidar_pose[0]) - leg_points[j].x, 2.) + powf((msg.scan.ranges[i]*(sin(msg.scan.angle_min + range_angle_increment*i)) + lidar_pose[1]) - leg_points[j].y, 2.)) <= max_human_radius)
+                        if (sqrtf(powf((msg.scan.ranges[i]*(cos(msg.scan.angle_min + range_angle_increment*i)) + lidar_pose[0]) - leg_points_base[j].x, 2.) + powf((msg.scan.ranges[i]*(sin(msg.scan.angle_min + range_angle_increment*i)) + lidar_pose[1]) - leg_points_base[j].y, 2.)) <= max_human_radius)
                         {
                             removal_lidar_data.ranges[i] = NAN;
                             break;
@@ -131,7 +134,6 @@ class HUMAN_DETECT
             copy(leg_points.begin(), leg_points.end(), leg_points_steps.point2.begin());
             copy(leg_points.begin(), leg_points.end(), leg_points_steps.point3.begin());
             leg_points_steps.point_next.clear();
-            // int seq = 1;
             while (ros::ok())
             {
                 leg_points_steps.point1.clear();
@@ -144,7 +146,6 @@ class HUMAN_DETECT
                 std::vector<std::vector<geometry_msgs::Point>> leg_points_samplings;   // 第一要素が足の数、第二要素が足のそれぞれのステップ
                 std::vector<geometry_msgs::Point> leg_points_temp;
                 leg_points_samplings.clear();
-                // leg_points_temp.clear();
                 leg_points_samplings.resize(leg_points.size());
                 leg_points_temp.resize(leg_points.size());
                 copy(leg_points.begin(), leg_points.end(), leg_points_temp.begin());
@@ -231,23 +232,7 @@ class HUMAN_DETECT
                     }
                 }
 
-
-                for (int i=0; i<leg_points_steps.point1.size(); i++)
-                {
-                    leg_points_steps.point1[i] = Pointtransform("base_footprint", "map", leg_points_steps.point1[i]);
-                }
-                for (int i=0; i<leg_points_steps.point2.size(); i++)
-                {
-                    leg_points_steps.point2[i] = Pointtransform("base_footprint", "map", leg_points_steps.point2[i]);
-                }
-                for (int i=0; i<leg_points_steps.point3.size(); i++)
-                {
-                    leg_points_steps.point3[i] = Pointtransform("base_footprint", "map", leg_points_steps.point3[i]);
-                }
-                // for (int i=0; i<leg_points_steps.point_next.size(); i++)
-                // {
-                //     leg_points_steps.point_next[i] = Pointtransform("base_footprint", "map", leg_points_steps.point_next[i]);
-                // }
+                // ここから予測
                 leg_points_steps.point_next.clear();
                 for (int i=0; i<leg_points_steps.point3.size(); i++)
                 {
@@ -262,34 +247,12 @@ class HUMAN_DETECT
                         }
                     }
                 }
-                for (int i=0; i<leg_points_steps.point1.size(); i++)
-                {
-                    leg_points_steps.point1[i] = Pointtransform("map", "base_footprint", leg_points_steps.point1[i]);
-                }
-                for (int i=0; i<leg_points_steps.point2.size(); i++)
-                {
-                    leg_points_steps.point2[i] = Pointtransform("map", "base_footprint", leg_points_steps.point2[i]);
-                }
-                for (int i=0; i<leg_points_steps.point3.size(); i++)
-                {
-                    leg_points_steps.point3[i] = Pointtransform("map", "base_footprint", leg_points_steps.point3[i]);
-                }
-                for (int i=0; i<leg_points_steps.point_next.size(); i++)
-                {
-                    leg_points_steps.point_next[i] = Pointtransform("map", "base_footprint", leg_points_steps.point_next[i]);
-                }
                 pub_walk_leg.publish(leg_points_steps);
                 ros::spinOnce();
-                // seq++;
             }
         }
 };
 
-
-// sensor_msgs::PointCloud pts;
-// pts.header.seq = seq;
-// pts.header.stamp = ros::Time::now();
-// pts.header.frame_id = "base_footprint";
 
 int main(int argc, char **argv)
 {
