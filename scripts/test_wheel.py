@@ -18,6 +18,10 @@ def main(vel_x, vel_y, range_m):
     vel = Twist()                           # 速度を送るための変数をTwist型で宣言
     vel.linear.x = vel_x                    # ロボットから見て並進前方方向にvel_x[m/s]の速度を変数に代入
     vel.linear.y = vel_y                    # ロボットから見て並進前方方向にvel_y[m/s]の速度を変数に代入
+    msg_time = rospy.Time.now()
+    now_time =  rospy.Time.now()
+    last_time =  rospy.Time.now()
+    last_dist = 0.0
 
     while not rospy.is_shutdown():                              # このプログラムがROSとして起動している間、23行目~27行目を回り続ける
         if (current_x is not None) and (current_y is not None): # ロボットの位置が、8,9行目の未確定状態から、12,13行目によって更新されれば、、、
@@ -25,21 +29,30 @@ def main(vel_x, vel_y, range_m):
     init_x = current_x                                          # 現在の位置xを初期位置として記憶する
     init_y = current_y                                          # 現在の位置yを初期位置として記憶する
 
-    r = rospy.Rate(100)
+    # r = rospy.Rate(100)
     while not rospy.is_shutdown():                                              # このプログラムがROSとして起動している間、29行目~34行目を回り続ける
         pub.publish(vel)                                                        # 17行目で宣言したとおり、速度を発行している
+        now_time =  rospy.Time.now()
         distance = math.sqrt((current_x - init_x)**2 + (current_y - init_y)**2) # distanceに、現在の位置と、初期位置との距離を三平方から計算している
-        file_name = str("/home/sobits/catkin_ws/src/fumifumi.csv")
-        f = open(file_name, 'a') # 書き込みモードで開く
-        msg_time = rospy.Time.now()
-        txt_output_str  = str(msg_time) + "," # 時間の挿入
-        txt_output_str += str(current_x) + "\n" # odomの挿入
-        f.write(txt_output_str) # 引数の文字列をファイルに書き込む
-        f.close() # ファイルを閉じる
-        r.sleep()
-        if distance >= range_m:                                                 # 距離(distance)が1[m]を越えたら、、、
+        delta_t = (now_time - last_time).to_sec()
+        if delta_t > 0.1:
+            delta_dist = distance - last_dist
+            velocty = delta_dist / delta_t
+            file_name = str("/home/sobits/catkin_ws/src/fumifumifumifumifuimifumifumi.csv")
+            f = open(file_name, 'a') # 書き込みモードで開く
+
+            txt_output_str  = str(now_time) + "," # 時間の挿入
+            txt_output_str += str(distance) + "\n" # odomの挿入
+            f.write(txt_output_str) # 引数の文字列をファイルに書き込む
+            f.close() # ファイルを閉じる
+            last_time = now_time
+            last_dist = distance
+        # r.sleep()
+        if distance >= 1.0:                                                 # 距離(distance)が1[m]を越えたら、、、
+            vel.linear.x = 0.10                                                  # ロボットから見て並進前方方向に0.0[m/s](停止)の速度を変数に代入                                                              # このwhile文を抜け出す
+        if distance >= 2.0:                                                 # 距離(distance)が1[m]を越えたら、、、
             vel.linear.x = 0.0                                                  # ロボットから見て並進前方方向に0.0[m/s](停止)の速度を変数に代入
-            break                                                               # このwhile文を抜け出す
+            break              
 
     # pub.publish(vel)                                                            # 17行目で宣言したとおり、速度を発行している
     # rospy.spin()                                                                # 36行目までのプログラムが起動し役目を終えるまでプログラムが終了しないようにしている
@@ -57,3 +70,7 @@ if __name__ == '__main__':
     zero_vel.angular.z = 0.0                     # ロボットから見て並進前方方向に0.0[rad/s]の速度を変数に代入
     pub.publish(zero_vel)
     rospy.spin()  
+
+
+##  roslaunch sobit_pro_bringup minimal.launch enable_mb:=true enable_arm:=false enable_head:=false
+##  rosrun navigation_stack test_wheel.py

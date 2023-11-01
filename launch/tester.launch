@@ -11,9 +11,15 @@
         </node>
     </group> -->
 
-    <arg name="save_map"            default="true" />
-    <node if="$(arg save_map)" name="map_saver" pkg="navigation_stack" type="map_saver" launch-prefix="xterm -font r16 -fg floralwhite -bg darkslateblue -e">
+    <!-- <arg name="save_map"            default="true" /> -->
+    <!-- <node if="$(arg save_map)" name="map_saver" pkg="navigation_stack" type="map_saver" launch-prefix="xterm -font r16 -fg floralwhite -bg darkslateblue -e"> -->
         <!-- <param name="map_save_path" type="str" value="$(find sobit_mapping)/map/"/> -->
-    </node>
+    <!-- </node> -->
+
+    <!-- <node name="cpp_lecture" pkg="navigation_stack" type="cpp_lecture" output="screen">
+        <rosparam command="load" file="$(find navigation_stack)/param/prediction_leg_parameter.yaml"/>
+    </node> -->
+    <node name="cpp_lecture" pkg="navigation_stack" type="cpp_lecture" output="screen"/>
+    <rosparam command="load" file="$(find navigation_stack)/param/prediction_leg_parameter.yaml"/>
 
 </launch>

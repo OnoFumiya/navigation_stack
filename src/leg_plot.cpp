@@ -14,6 +14,29 @@
 #include <navigation_stack/WalkLegPoint.h>
 
 
+class ALL_PARAMETER
+{
+    public:
+        float lidar_pose[2] = {0.2, 0.0};
+        int sampling_step = 5;
+        float max_human_vel = 1.5;
+        float max_human_radius = 0.80;
+        float human_noise = 0.4;
+        float detect_range_time = 0.1;
+        std::string robot_base = "base_footprint";
+        std::string map = "map";
+        std::string removal_scan_topic = "/dr_spaam_navigation/scan";
+        std::string stepping_leg_point_topic = "/dr_spaam_navigation/leg_pointers_step";
+        std::string dr_spaam_topic = "/dr_spaam_detections";
+        std::string removal_scan_marker = "/dr_spaam_navigation/lidar_points";
+        std::string step1_leg_marker = "/dr_spaam_navigation/leg_point_step1";
+        std::string step2_leg_marker = "/dr_spaam_navigation/leg_point_step2";
+        std::string step3_leg_marker = "/dr_spaam_navigation/leg_point_step3";
+        std::string next_step_leg_marker = "/dr_spaam_navigation/leg_point_nextstep";
+        std::string walk_cost_topic = "/dr_spaam_navigation/leg_cost";
+};
+
+
 class RvizMarkerLibrary
 {
     public:
@@ -67,8 +90,9 @@ class PLOT
         ros::Subscriber removal_scan_sub;
         ros::Subscriber legs_sub;
         RvizMarkerLibrary marker_lib;
-        float lidar_pose[2] = {0.2, 0.0};
-        float detect_range_time = 0.1;
+        ALL_PARAMETER all_parameter;
+        // float lidar_pose[2] = {0.2, 0.0};
+        // float detect_range_time = 0.1;
         bool start_flag_leg, start_flag_scan;
         std_msgs::ColorRGBA red_color;
         std_msgs::ColorRGBA white_color;
@@ -82,10 +106,8 @@ class PLOT
         geometry_msgs::Vector3 arrow_scale;
         geometry_msgs::Pose defalt_pose;
         std::vector<geometry_msgs::Point> leg_points_temp;
-        // std::vector<std::vector<geometry_msgs::Point>> leg_points_samplings;
         navigation_stack::WalkLegPoint leg_points_steps;
         std::vector<std::vector<int>> index_combination;
-        // int combination[sampling_step];
         sensor_msgs::PointCloud pcl;
         Eigen::Quaterniond thetaToQuaternion(double theta)
         {
@@ -108,8 +130,8 @@ class PLOT
                 if ((msg.range_min <= msg.ranges[i]) && (msg.ranges[i] <= msg.range_max))
                 {
                     a = (msg.angle_min + range_angle_increment*i);
-                    point.x = msg.ranges[i]*(cos(a)) + lidar_pose[0];
-                    point.y = msg.ranges[i]*(sin(a)) + lidar_pose[1];
+                    point.x = msg.ranges[i]*(cos(a)) + all_parameter.lidar_pose[0];
+                    point.y = msg.ranges[i]*(sin(a)) + all_parameter.lidar_pose[1];
                     point.z = 0.02;
                     lidar_points.push_back(point);
                 }
@@ -127,7 +149,7 @@ class PLOT
             copy(wlp.point3.begin(), wlp.point3.end(), leg_points_steps.point3.begin());
             copy(wlp.point_next.begin(), wlp.point_next.end(), leg_points_steps.point_next.begin());
             pcl.header.stamp = ros::Time::now();
-            pcl.header.frame_id = "base_footprint";
+            pcl.header.frame_id = all_parameter.robot_base;
             pcl.points.clear();
             for (int i=0; i<leg_points_steps.point_next.size(); i++)
             {
@@ -143,8 +165,8 @@ class PLOT
         std::vector<geometry_msgs::Point> lidar_points;
         PLOT()
         {
-            removal_scan_sub = nh.subscribe("/dr_spaam_navigation/scan", 10, &PLOT::callback_scan, this);
-            legs_sub = nh.subscribe("/dr_spaam_navigation/leg_pointers_step", 1, &PLOT::callback_legs, this);
+            removal_scan_sub = nh.subscribe(all_parameter.removal_scan_topic, 10, &PLOT::callback_scan, this);
+            legs_sub = nh.subscribe(all_parameter.stepping_leg_point_topic, 1, &PLOT::callback_legs, this);
             start_flag_leg = false;
             start_flag_scan = false;
             while (ros::ok())
@@ -158,12 +180,12 @@ class PLOT
                 ros::spinOnce();
             }
             ros::spinOnce();
-            pub_marker_lidar = nh.advertise<visualization_msgs::Marker>("/dr_spaam_navigation/lidar_points", 10);
-            pub_marker_leg1 = nh.advertise<visualization_msgs::Marker>("/dr_spaam_navigation/leg_point_step1", 10);
-            pub_marker_leg2 = nh.advertise<visualization_msgs::Marker>("/dr_spaam_navigation/leg_point_step2", 10);
-            pub_marker_leg3 = nh.advertise<visualization_msgs::Marker>("/dr_spaam_navigation/leg_point_step3", 10);
-            pub_marker_leg_next = nh.advertise<visualization_msgs::Marker>("/dr_spaam_navigation/leg_point_nextstep", 10);
-            pub_leg_cost = nh.advertise<sensor_msgs::PointCloud>("/dr_spaam_navigation/leg_cost", 10);
+            pub_marker_lidar = nh.advertise<visualization_msgs::Marker>(all_parameter.removal_scan_marker, 10);
+            pub_marker_leg1 = nh.advertise<visualization_msgs::Marker>(all_parameter.step1_leg_marker, 10);
+            pub_marker_leg2 = nh.advertise<visualization_msgs::Marker>(all_parameter.step2_leg_marker, 10);
+            pub_marker_leg3 = nh.advertise<visualization_msgs::Marker>(all_parameter.step3_leg_marker, 10);
+            pub_marker_leg_next = nh.advertise<visualization_msgs::Marker>(all_parameter.next_step_leg_marker, 10);
+            pub_leg_cost = nh.advertise<sensor_msgs::PointCloud>(all_parameter.walk_cost_topic, 10);
             defalt_pose.position.x = 0.0;
             defalt_pose.position.y = 0.0;
             defalt_pose.position.z = 0.0;
@@ -211,15 +233,15 @@ class PLOT
             while (ros::ok())
             {
                 cube_colors.assign(lidar_points.size(),red_color);
-                pub_marker_lidar.publish( marker_lib.makeMarkerList( visualization_msgs::Marker::POINTS, "base_footprint", "lidar_point", defalt_pose, lidar_points, point_scale, cube_colors, ros::Duration(1) ) );
+                pub_marker_lidar.publish( marker_lib.makeMarkerList( visualization_msgs::Marker::POINTS, all_parameter.robot_base, "lidar_point", defalt_pose, lidar_points, point_scale, cube_colors, ros::Duration(1) ) );
                 cube_colors.assign(leg_points_steps.point1.size(),white_color);
-                pub_marker_leg1.publish( marker_lib.makeMarkerList( visualization_msgs::Marker::SPHERE_LIST, "map", "point_list1", defalt_pose, leg_points_steps.point1, cylinder_scale, cube_colors, ros::Duration(1) ) );
+                pub_marker_leg1.publish( marker_lib.makeMarkerList( visualization_msgs::Marker::SPHERE_LIST, all_parameter.map, "point_list1", defalt_pose, leg_points_steps.point1, cylinder_scale, cube_colors, ros::Duration(1) ) );
                 cube_colors.assign(leg_points_steps.point2.size(),blue_color);
-                pub_marker_leg2.publish( marker_lib.makeMarkerList( visualization_msgs::Marker::SPHERE_LIST, "map", "point_list2", defalt_pose, leg_points_steps.point2, cylinder_scale, cube_colors, ros::Duration(1) ) );
+                pub_marker_leg2.publish( marker_lib.makeMarkerList( visualization_msgs::Marker::SPHERE_LIST, all_parameter.map, "point_list2", defalt_pose, leg_points_steps.point2, cylinder_scale, cube_colors, ros::Duration(1) ) );
                 cube_colors.assign(leg_points_steps.point3.size(),green_color);
-                pub_marker_leg3.publish( marker_lib.makeMarkerList( visualization_msgs::Marker::SPHERE_LIST, "map", "point_list3", defalt_pose, leg_points_steps.point3, cylinder_scale, cube_colors, ros::Duration(1) ) );
+                pub_marker_leg3.publish( marker_lib.makeMarkerList( visualization_msgs::Marker::SPHERE_LIST, all_parameter.map, "point_list3", defalt_pose, leg_points_steps.point3, cylinder_scale, cube_colors, ros::Duration(1) ) );
                 cube_colors.assign(leg_points_steps.point_next.size(),yellow_color);
-                pub_marker_leg_next.publish( marker_lib.makeMarkerList( visualization_msgs::Marker::SPHERE_LIST, "map", "point_next", defalt_pose, leg_points_steps.point_next, cylinder_scale, cube_colors, ros::Duration(1) ) );
+                pub_marker_leg_next.publish( marker_lib.makeMarkerList( visualization_msgs::Marker::SPHERE_LIST, all_parameter.map, "point_next", defalt_pose, leg_points_steps.point_next, cylinder_scale, cube_colors, ros::Duration(1) ) );
                 pub_leg_cost.publish(pcl);
                 ros::spinOnce();
             }
