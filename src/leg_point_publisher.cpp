@@ -302,11 +302,25 @@ class HUMAN_DETECT
                 }
 
                 // ここから予測
+                geometry_msgs::Point p1, p2, p3;
+                float a_base_x, b_base_x, c_base_x, a_base_y, b_base_y, c_base_y;
+                a_base_x = NAN;
+                b_base_x = NAN;
+                c_base_x = NAN;
+                a_base_y = NAN;
+                b_base_y = NAN;
+                c_base_y = NAN;
                 leg_points_steps.point_next.clear();
                 for (int i=0; i<leg_points_steps.point3.size(); i++)
                 {
                     if ((i < leg_points_steps.point1.size()) && (i < leg_points_steps.point2.size()))
                     {
+                        p1 = Pointtransform(all_parameter.map, all_parameter.robot_base, leg_points_steps.point1[i]);
+                        p2 = Pointtransform(all_parameter.map, all_parameter.robot_base, leg_points_steps.point2[i]);
+                        p3 = Pointtransform(all_parameter.map, all_parameter.robot_base, leg_points_steps.point3[i]);
+                        if ((p1.x != p2.x) && (p2.x != p3.x) && (p3.x == p1.x))
+                        {}
+                        else if ((p1.y != p2.y) && (p2.y != p3.y) && (p3.x == p1.y))
                         if ((std::isnan(leg_points_steps.point1[i].x) != true) && (std::isnan(leg_points_steps.point1[i].y) != true) && (std::isnan(leg_points_steps.point2[i].x) != true) && (std::isnan(leg_points_steps.point2[i].y) != true) && (std::isnan(leg_points_steps.point3[i].x) != true) && (std::isnan(leg_points_steps.point3[i].y) != true))
                         {
                             leg_point_temp.x = leg_points_steps.point3[i].x + (leg_points_steps.point3[i].x - leg_points_steps.point2[i].x);
