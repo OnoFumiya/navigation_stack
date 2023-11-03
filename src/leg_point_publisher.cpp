@@ -315,14 +315,23 @@ class HUMAN_DETECT
                 {
                     if ((i < leg_points_steps.point1.size()) && (i < leg_points_steps.point2.size()))
                     {
-                        p1 = Pointtransform(all_parameter.map, all_parameter.robot_base, leg_points_steps.point1[i]);
-                        p2 = Pointtransform(all_parameter.map, all_parameter.robot_base, leg_points_steps.point2[i]);
-                        p3 = Pointtransform(all_parameter.map, all_parameter.robot_base, leg_points_steps.point3[i]);
-                        if ((p1.x != p2.x) && (p2.x != p3.x) && (p3.x == p1.x))
-                        {}
-                        else if ((p1.y != p2.y) && (p2.y != p3.y) && (p3.x == p1.y))
                         if ((std::isnan(leg_points_steps.point1[i].x) != true) && (std::isnan(leg_points_steps.point1[i].y) != true) && (std::isnan(leg_points_steps.point2[i].x) != true) && (std::isnan(leg_points_steps.point2[i].y) != true) && (std::isnan(leg_points_steps.point3[i].x) != true) && (std::isnan(leg_points_steps.point3[i].y) != true))
                         {
+                            p1 = Pointtransform(all_parameter.map, all_parameter.robot_base, leg_points_steps.point1[i]);
+                            p2 = Pointtransform(all_parameter.map, all_parameter.robot_base, leg_points_steps.point2[i]);
+                            p3 = Pointtransform(all_parameter.map, all_parameter.robot_base, leg_points_steps.point3[i]);
+                            if ((p1.x != p2.x) && (p2.x != p3.x) && (p3.x != p1.x))
+                            {
+                                a_base_x = ((p1.y - p2.y) / ((p1.x - p2.x) * (p2.x - p3.x))) - ((p1.y - p3.y) / ((p1.x - p3.x) * (p2.x - p3.x)));
+                                b_base_x = (p1.y - p2.y) / (p1.x - p2.x) - a_base_x * (p1.x + p2.x);
+                                c_base_x = p1.y - a_base_x * pow(p1.x, 2.) - b_base_x * p1.x;
+                            }
+                            if ((p1.y != p2.y) && (p2.y != p3.y) && (p3.x != p1.y))
+                            {
+                                a_base_y = ((p1.x - p2.x) / ((p1.y - p2.y) * (p2.y - p3.y))) - ((p1.x - p3.x) / ((p1.y - p3.y) * (p2.y - p3.y)));
+                                b_base_y = (p1.x - p2.x) / (p1.y - p2.y) - a_base_y * (p1.y + p2.y);
+                                c_base_y = p1.x - a_base_y * pow(p1.y, 2.) - b_base_y * p1.y;
+                            }
                             leg_point_temp.x = leg_points_steps.point3[i].x + (leg_points_steps.point3[i].x - leg_points_steps.point2[i].x);
                             leg_point_temp.y = leg_points_steps.point3[i].y + (leg_points_steps.point3[i].y - leg_points_steps.point2[i].y);
                             leg_point_temp.z = 0.4;
