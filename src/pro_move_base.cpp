@@ -44,9 +44,9 @@ class PARAM
         // DWA
 
         // speed
-        float sum_max_speed = 0.35;
+        float sum_max_speed = 0.30;
         float sum_min_speed = 0.05;
-        float max_speed_x = 0.35;
+        float max_speed_x = 0.30;
         float min_speed_x = 0.00;
         float max_speed_y = 0.20;
         float min_speed_y =-0.20;
@@ -77,50 +77,16 @@ class PARAM
         // other
         float robot_radius = 0.35;
         float goal_position_range = 0.2;
-        float local_position_range = 0.42;
-        float goal_angle_range = 10.0 * (M_PI/180.);
-        float linear_y_angle_range = 38.0 * (M_PI/180.);
-        // bool omni_base = false;
-        // int local_goal_range = 5;
+        float local_position_range = 0.45;
+        float linear_y_angle_range = 60.0 * (M_PI/180.);
 };
 
-
-class GRIDDING
-{
-    public:
-        float size = 0.1;
-        float arg_size = 1/size;
-        float float_to_grid(float s, bool f=true)  // 適当な値をgrid幅に矯正する関数
-        {
-            float r = s - (((float)(s/size) - (int)(s/size))*size);
-            if ((s<0) && (f))
-            {
-                r-=size;
-            }
-            r += (size/2);
-            return r;
-        }
-        int float_to_int(float s, bool f=true)  // grid幅の値を0を基準にした格納番号(int型)に変換する関数
-        {
-            int r = s*arg_size;
-            if ((s<0) && (f))
-            {
-                r--;
-            }
-            return r;
-        }
-        float int_to_grid(int s)  // float_to_intの逆をする
-        {
-            return (float)((s/arg_size) + (size/2.0));
-        }
-};
 
 
 class ROBOT_POSITION
 {
     private:
         ros::Subscriber sub_odom;
-        // ros::Subscriber sub_robot;
         bool f;
         void callback_odom(const nav_msgs::Odometry &odom)
         {
@@ -136,59 +102,15 @@ class ROBOT_POSITION
             {
                 odom_theta = (2*M_PI - std::fabs(odom_theta))*(((odom.pose.pose.orientation.z)*(odom.pose.pose.orientation.w))/(std::fabs((odom.pose.pose.orientation.z)*(odom.pose.pose.orientation.w))));
             }
-            // robot_pose.position.x = robot_pose_stack.position.x + odom_pose.x - odom_pose_stack.x;
-            // robot_pose.position.y = robot_pose_stack.position.y + odom_pose.y - odom_pose_stack.y;
-            // robot_pose.position.z = 0.03;
-            // robot_theta = robot_theta_stack + odom_theta - odom_theta_stack;
-            // robot_pose.orientation.w = cos(robot_theta / 2.);
-            // robot_pose.orientation.x = 0.;
-            // robot_pose.orientation.y = 0.;
-            // robot_pose.orientation.z = sin(robot_theta / 2.);
             f = true;
         }
-        // void callback_robot(const geometry_msgs::Pose &robot)
-        // {
-        //     robot_pose_stack.position.x = robot.position.x;
-        //     robot_pose_stack.position.y = robot.position.y;
-        //     robot_pose_stack.position.z = robot.position.z + 0.03;
-        //     robot_theta_stack = (2*(acos(robot.orientation.w)))*((robot.orientation.z)*(robot.orientation.w))/(std::fabs((robot.orientation.z)*(robot.orientation.w)));
-        //     if (std::isnan(robot_theta_stack) == true)
-        //     {
-        //         robot_theta_stack = 0.0;
-        //     }
-        //     if ((std::fabs(robot_theta_stack)) > M_PI)
-        //     {
-        //         robot_theta_stack = (2*M_PI - std::fabs(robot_theta_stack))*(((robot.orientation.z)*(robot.orientation.w))/(std::fabs((robot.orientation.z)*(robot.orientation.w))));
-        //     }
-        //     robot_pose_stack.orientation.w = cos(robot_theta_stack / 2.);
-        //     robot_pose_stack.orientation.x = 0.;
-        //     robot_pose_stack.orientation.y = 0.;
-        //     robot_pose_stack.orientation.z = sin(robot_theta_stack / 2.);
-        //     odom_pose_stack.x = odom_pose.x;
-        //     odom_pose_stack.y = odom_pose.y;
-        //     odom_theta_stack = odom_theta;
-        //     f = true;
-        // }
     public:
-        // geometry_msgs::Pose robot_pose;
-        // geometry_msgs::Pose robot_pose_stack;
         geometry_msgs::Point odom_pose;
-        // float robot_theta = 0.0;
-        // float robot_theta_stack = 0.0;
         float odom_theta = 0.0;
-        // geometry_msgs::Point odom_pose_stack;
-        // float odom_theta_stack = 0.0;
         ROBOT_POSITION()
         {
             ros::NodeHandle node;
             sub_odom = node.subscribe("/odom", 10, &ROBOT_POSITION::callback_odom, this);
-            // sub_robot = node.subscribe("/robot_position", 10, &ROBOT_POSITION::callback_robot, this);
-            // odom_pose.x = 0.;
-            // odom_pose.y = 0.;
-            // odom_pose.z = 0.;
-            // odom_pose_stack.x = 0.;
-            // odom_pose_stack.y = 0.;
-            // odom_pose_stack.z = 0.;
             get_point();
         }
         void get_point()
@@ -200,10 +122,6 @@ class ROBOT_POSITION
                 ros::spinOnce();
                 if (f)
                 {
-                    // odom_pose_stack.x = odom_pose.x;
-                    // odom_pose_stack.y = odom_pose.y;
-                    // odom_pose_stack.z = odom_pose.z;
-                    // odom_theta_stack = odom_theta;
                     break;
                 }
             }
@@ -217,7 +135,6 @@ class OBSTACLE_DIST
         ros::Subscriber sub_dist;
         geometry_msgs::Point point;
         float lidar_pose[2] = {0.2, 0.0};
-        // float lidar_pose[2] = {0.0, 0.0};
         PARAM param;
         bool start_frag;
         void callback_obstacle(const sensor_msgs::LaserScan &ob)
@@ -242,7 +159,6 @@ class OBSTACLE_DIST
             start_frag = true;
         }
     public:
-        // ROBOT_POSITION robot_position;
         std::vector<float> ob_theta;
         std::vector<geometry_msgs::Point> range_point;
         float range_angle_increment;
@@ -280,48 +196,6 @@ class MOVE_CLASS
         {
             ros::NodeHandle node;
             pub_twist = node.advertise<geometry_msgs::Twist>("mobile_base/commands/velocity", 10);
-            // pub_twist = node.advertise<geometry_msgs::Twist>("/cmd_vel", 10);
-        }
-        void straight_and_turn_time(float u_vel, float u_ang, float dt)
-        {
-            ros::Rate rate(5.0);
-            geometry_msgs::Twist vel;
-            struct timeval t;
-            int i = 0;
-            while (1)
-            {
-                if (dt-i >= 1)
-                {
-                    i++;
-                }
-                else
-                {
-                    break;
-                }
-            }
-            long udt = (dt-i)*(pow(10,6));
-            dt = i;
-            vel.linear.x = u_vel;
-            vel.angular.z = u_ang*0.99;
-            gettimeofday(&t, NULL);    //時間を取得
-            long sec_0 = t.tv_sec , sec;     //整数部分の秒(s)
-            long usec_0 = t.tv_usec, usec;   //小数以下第6位までの((10**(-6))s)
-            ros::spinOnce();
-            while (ros::ok())
-            {
-                ros::spinOnce();
-                pub_twist.publish(vel);
-                gettimeofday(&t, NULL);
-                sec = t.tv_sec;     //整数部分の秒(s)
-                usec = t.tv_usec;   //小数以下第6位までの((10**(-6))s)
-                if (((sec - sec_0) >= dt) || (dt == 0))
-                {
-                    if ((udt == 0) || (((usec - usec_0) >= 0) && (usec - usec_0) >= udt) || (((usec - usec_0) < 0) && ((usec+(pow(10,6))-usec_0) >= udt)))
-                    {
-                        break;
-                    }
-                }
-            }
         }
         void stop_vel()
         {
@@ -331,13 +205,6 @@ class MOVE_CLASS
             vel.angular.z = 0.;
             ros::spinOnce();
             only_vel_pub(vel);
-            ros::spinOnce();
-        }
-        void go(float st, float si, float t)
-        {
-            ros::spinOnce();
-            straight_and_turn_time(st, si, t);
-            stop_vel();
             ros::spinOnce();
         }
         void only_vel_pub(geometry_msgs::Twist vel)
@@ -382,44 +249,50 @@ struct TRAJECTORY_NODE
 class PATH_MOVING
 {
     private:
+        tf::TransformListener tf_listener;
         OBSTACLE_DIST obstacle_dist;
         PARAM param;
-        ros::Publisher pub_local_path;
-        ros::Publisher pub_goal_flag;
         ros::Subscriber sub_globalpath;
-        std::vector<geometry_msgs::Point> global_path_basefootprint;
-        std::vector<geometry_msgs::Point> global_path_map;
-        std_msgs::Bool end_flag;
-        int id_stack;
+        std::vector<geometry_msgs::Point> global_path;
+        // std::vector<geometry_msgs::Point> global_path_basefootprint;
+        // std::vector<geometry_msgs::Point> global_path_map;
+        bool end_flag = true;
         void callback_globalpath(const nav_msgs::Path &get_path)
         {
-            global_path_map.clear();
+            // global_path_map.clear();
+            global_path.clear();
             for (int i=0; i<get_path.poses.size(); i++)
             {
                 geometry_msgs::Point pt;
                 pt.x = get_path.poses[i].pose.position.x;
                 pt.y = get_path.poses[i].pose.position.y;
                 pt.z = get_path.poses[i].pose.position.z;
-                global_path_map.push_back(pt);
+                // global_path_map.push_back(pt);
+                global_path.push_back(Pointtransform("map", "base_footprint", pt));
+                end_flag = false;
+            }
+            if (0 < global_path.size())
+            {
+                if (euclidean_distance(0., 0., global_path[global_path.size()-1].x, global_path[global_path.size()-1].y) <= param.goal_position_range)
+                {
+                    end_flag = true;
+                }
             }
         }
     public:
         PATH_MOVING()
         {
             ros::NodeHandle node;
-            pub_local_path = node.advertise<navigation_stack::PathPoint>("/local_path_planning", 10);
-            pub_goal_flag = node.advertise<std_msgs::Bool>("/goal_flag", 10);
             sub_globalpath = node.subscribe("move_base/GlobalPlanner/plan", 10, &PATH_MOVING::callback_globalpath, this);
             move_control();
         }
         void move_control()
         {
             ros::spinOnce();
-            end_flag.data = true;
             while (ros::ok())
             {
                 ros::spinOnce();
-                if (global_path_map.size() == 0)
+                if (end_flag)
                 {
                     ros::spinOnce();
                     continue;
@@ -427,7 +300,6 @@ class PATH_MOVING
                 else
                 {
                     ros::spinOnce();
-                    id_stack = -1;
                     path_plan();
                 }
             }
@@ -447,138 +319,108 @@ class PATH_MOVING
             velocity.angular.z = 0.;
             double dw[2][2] = {{velocity.linear.x, velocity.linear.x}, {velocity.angular.z, velocity.angular.z}};
             int target_index = 0;
-            tf::TransformListener tf_listener_;
+            // tf::TransformListener tf_listener_;
             while (ros::ok())
             {
-                ros::spinOnce();
-                if (global_path_map.size()>0)
+                if (global_path.size() <= 0)
                 {
-                    geometry_msgs::PointStamped pt_transformed;
-                    geometry_msgs::PointStamped pt;
-                    pt.header.frame_id = "map";
-                    pt.header.stamp = ros::Time(0);
-                    int potential_goal = 0;
-                    for (int i=0; i<global_path_map.size(); i++)
+                    if (end_flag)
                     {
-                        // pt.header.stamp = ros::Time(0);
-                        pt.point.x = global_path_map[i].x;
-                        pt.point.y = global_path_map[i].y;
-                        pt.point.z = global_path_map[i].z;
-                        try
-                        {
-                            tf_listener_.transformPoint( "base_footprint", pt, pt_transformed );
-                            global_path_basefootprint.push_back(pt_transformed.point);
-                        }
-                        catch ( const tf::TransformException& ex )
-                        {
-                            // ROS_ERROR( "%s",ex.what( ) );
-                        }
+                        break;
                     }
-                    if (global_path_basefootprint.size() == 0)
+                    else
                     {
                         continue;
                     }
-                    if (euclidean_distance(0., 0., global_path_basefootprint[global_path_basefootprint.size()-1].x, global_path_basefootprint[global_path_basefootprint.size()-1].y) <= param.goal_position_range)
+                }
+                ros::spinOnce();
+                // if (global_path.size()>0)
+                // {
+                    int potential_goal = 0;
+                    ////////////////////////////////////////////
+                    // geometry_msgs::PointStamped pt_transformed;
+                    // geometry_msgs::PointStamped pt;
+                    // pt.header.frame_id = "map";
+                    // pt.header.stamp = ros::Time(0);
+                    // for (int i=0; i<global_path_map.size(); i++)
+                    // {
+                    //     pt.point.x = global_path_map[i].x;
+                    //     pt.point.y = global_path_map[i].y;
+                    //     pt.point.z = global_path_map[i].z;
+                    //     try
+                    //     {
+                    //         tf_listener_.transformPoint( "base_footprint", pt, pt_transformed );
+                    //         global_path_basefootprint.push_back(pt_transformed.point);
+                    //     }
+                    //     catch ( const tf::TransformException& ex )
+                    //     {}
+                    // }
+                    // if (global_path_basefootprint.size() == 0)
+                    // {
+                    //     continue;
+                    // }
+                    ///////////////////////////////////////////////
+                    // if (euclidean_distance(0., 0., global_path_basefootprint[global_path_basefootprint.size()-1].x, global_path_basefootprint[global_path_basefootprint.size()-1].y) <= param.goal_position_range)
+                    // {
+                    //     break;
+                    // }
+                    ///////////////////////////////////////////////
+                    if (end_flag)
                     {
                         break;
                     }
                     float min_dist = std::numeric_limits<float>::max();
-                    for (int i=0; i<global_path_basefootprint.size(); i++)
+                    for (int i=0; i<global_path.size(); i++)
                     {
-                        if ((euclidean_distance(0., 0., global_path_basefootprint[i].x, global_path_basefootprint[i].y) <= min_dist) || (euclidean_distance(0., 0., global_path_basefootprint[i].x, global_path_basefootprint[i].y) <= param.local_position_range))
+                        if ((euclidean_distance(0., 0., global_path[i].x, global_path[i].y) <= min_dist) || (euclidean_distance(0., 0., global_path[i].x, global_path[i].y) <= param.local_position_range))
                         {
-                            if (euclidean_distance(0., 0., global_path_basefootprint[i].x, global_path_basefootprint[i].y) <= min_dist)
+                            if (euclidean_distance(0., 0., global_path[i].x, global_path[i].y) <= min_dist)
                             {
-                                min_dist = euclidean_distance(0., 0., global_path_basefootprint[i].x, global_path_basefootprint[i].y);
+                                min_dist = euclidean_distance(0., 0., global_path[i].x, global_path[i].y);
                             }
                             target_index = i;
                         }
                     }
                     target_index++;
-                    if (target_index >= global_path_basefootprint.size())
+                    if (target_index >= global_path.size())
                     {
-                        target_index = global_path_basefootprint.size() - 1;
+                        target_index = global_path.size() - 1;
                     }
                     bool y_challenge = false;
-                    for (int i=target_index; i<global_path_basefootprint.size(); i++)
+                    for (int i=target_index; i<global_path.size(); i++)
                     {
-                        if ((-1.5 <= global_path_basefootprint[i].x) && (global_path_basefootprint[i].x <= 1.5) && (-1.5 <= global_path_basefootprint[i].y) && (global_path_basefootprint[i].y <= 1.5))
+                        if ((-1.5 <= global_path[i].x) && (global_path[i].x <= 1.5) && (-1.5 <= global_path[i].y) && (global_path[i].y <= 1.5))
                         {
                             potential_goal = i;
                         }
                         else
                         {
-                            if (1.5 < global_path_basefootprint[i].x)
+                            if (1.5 < global_path[i].x)
                             {
                                 y_challenge = true;
                             }
                             break;
                         }
                     }
-                    // 
-                    // std::vector<float> x_points = {0, 1, 3};
-                    // std::vector<float> y_points = {1, 5, 13};
-                    // MatrixXd A(x_points.size(), 2);
-                    // VectorXd b(x_points.size());
-                    // for (int i = 0; i < x_points.size(); i++) {
-                    //     A(i, 0) = x_points[i];
-                    //     A(i, 1) = 1.0;
-                    //     b(i) = y_points[i];
-                    // }
-                    // Vector2d result = A.colPivHouseholderQr().solve(b);
-                    // std::cout << "Slope: " << result[0] << ", Intercept: " << result[1] << "\n";
-                    // 
                     float local_goal_angle = 0.;
                     int linaer_y_point = target_index;
                     if (y_challenge)
                     {
-                        MatrixXd A(target_index, 2);
-                        VectorXd b(target_index);
-                        for (int i=0; i<target_index; i++)
+                        // float path_angle = atan2(global_path[i].y, global_path[i].x)
+                        MatrixXd A(target_index + 1, 2);
+                        VectorXd b(target_index + 1);
+                        for (int i=0; i<=target_index; i++)
                         {
-                            A(i, 0) = global_path_basefootprint[i].x;
+                            A(i, 0) = global_path[i].x;
                             A(i, 1) = 1.0;
-                            b(i) = global_path_basefootprint[i].y;
+                            b(i) = global_path[i].y;
                         }
                         Vector2d result = A.colPivHouseholderQr().solve(b);
                         float path_angle = atan(result[0]);
-                        if (global_path_basefootprint[target_index].x < 0)
-                        {
-                            path_angle -= M_PI * (path_angle / std::fabs(path_angle));
-                        }
-                        if (std::fabs(path_angle) <= (M_PI / 2. - param.linear_y_angle_range))
+                        if ((std::fabs(path_angle) < (M_PI / 2. - param.linear_y_angle_range)) || ((M_PI/2. + param.linear_y_angle_range) < std::fabs(path_angle)))
                         {
                             y_challenge = false;
-                            // break;
                         }
-                        // for (int i=target_index; i<global_path_basefootprint.size(); i++)
-                        // {
-                        //     if (2 <= i)
-                        //     {
-                        //         MatrixXd A(i+1, 2);
-                        //         VectorXd b(i+1);
-                        //         A(0, 0) = global_path_basefootprint[0].x;
-                        //         A(0, 1) = 1.0;
-                        //         b(0) = global_path_basefootprint[0].y;
-                        //         for (int j=target_index; j<=i; j++)
-                        //         {
-                        //             A(j - target_index + 1, 0) = global_path_basefootprint[j].x;
-                        //             A(j - target_index + 1, 1) = 1.0;
-                        //             b(j - target_index + 1) = global_path_basefootprint[j].y;
-                        //         }
-                        //         Vector2d result = A.colPivHouseholderQr().solve(b);
-                        //         float path_angle = atan(result[0]);
-                        //         if (global_path_basefootprint[target_index].x < 0)
-                        //         {
-                        //             path_angle -= M_PI * (path_angle / std::fabs(path_angle));
-                        //         }
-                        //         if ((std::fabs(path_angle) <= (M_PI / 2. - param.linear_y_angle_range)) && (target_index <= i))
-                        //         {
-                        //             y_challenge = false;
-                        //             break;
-                        //         }
-                        //     }
-                        // }
                     }
                     std::vector<std::vector<TRAJECTORY_NODE>> path_cans;
                     std::vector<float> local_costs;
@@ -632,9 +474,9 @@ class PATH_MOVING
                                     }
                                     float cost_vel, cost_ang, cost_dist, cost_traj;
                                     cost_vel = (param.sum_max_speed - sqrtf(powf(velocitys[j].linear.x, 2.) + powf(velocitys[j].linear.y, 2.))) / (param.sum_max_speed);
-                                    cost_ang = acos((cos(path_cans[j][path_cans[j].size()-1].angle)*(global_path_basefootprint[target_index].x) + sin(path_cans[j][path_cans[j].size()-1].angle)*(global_path_basefootprint[target_index].y)) / sqrtf(powf((global_path_basefootprint[target_index].x), 2.) + powf((global_path_basefootprint[target_index].y), 2.))) / (M_PI);
+                                    cost_ang = acos((cos(path_cans[j][path_cans[j].size()-1].angle)*(global_path[target_index].x) + sin(path_cans[j][path_cans[j].size()-1].angle)*(global_path[target_index].y)) / sqrtf(powf((global_path[target_index].x), 2.) + powf((global_path[target_index].y), 2.))) / (M_PI);
                                     cost_dist = ((param.sum_max_speed*param.delta_time*param.predect_step) + 2*(param.robot_radius) - local_costs[j]) / ((param.sum_max_speed*param.delta_time*param.predect_step) + 1*(param.robot_radius));
-                                    cost_traj = last_position(velocitys[j], global_path_basefootprint[target_index]);
+                                    cost_traj = last_position(velocitys[j], global_path[target_index]);
                                     cost_vel *= param.velocity_weight;
                                     cost_ang *= param.angle_weight;
                                     cost_dist *= param.obstacle_distance_weight;
@@ -656,7 +498,7 @@ class PATH_MOVING
                                 {
                                     float cost_vel, cost_ang, cost_dist;
                                     cost_vel = (param.sum_max_speed - sqrtf(powf(velocitys[j].linear.x, 2.) + powf(velocitys[j].linear.y, 2.))) / (param.sum_max_speed);
-                                    cost_ang = acos((cos(path_cans[j][path_cans[j].size()-1].angle)*(global_path_basefootprint[target_index].x) + sin(path_cans[j][path_cans[j].size()-1].angle)*(global_path_basefootprint[target_index].y)) / sqrtf(powf((global_path_basefootprint[target_index].x), 2.) + powf((global_path_basefootprint[target_index].y), 2.))) / (M_PI);
+                                    cost_ang = acos((cos(path_cans[j][path_cans[j].size()-1].angle)*(global_path[target_index].x) + sin(path_cans[j][path_cans[j].size()-1].angle)*(global_path[target_index].y)) / sqrtf(powf((global_path[target_index].x), 2.) + powf((global_path[target_index].y), 2.))) / (M_PI);
                                     cost_dist = ((param.sum_max_speed*param.delta_time*param.predect_step) + 2*(param.robot_radius) - local_costs[j]) / ((param.sum_max_speed*param.delta_time*param.predect_step) + 1*(param.robot_radius));
                                     if (cost_dist <= sum_cost_dist)
                                     {
@@ -741,9 +583,9 @@ class PATH_MOVING
                                     }
                                     float cost_vel, cost_ang, cost_dist, cost_traj;
                                     cost_vel = (param.sum_max_speed - sqrtf(powf(velocitys[j].linear.x, 2.) + powf(velocitys[j].linear.y, 2.))) / (param.sum_max_speed);
-                                    cost_ang = acos((cos(path_cans[j][path_cans[j].size()-1].angle)*(global_path_basefootprint[target_index].x) + sin(path_cans[j][path_cans[j].size()-1].angle)*(global_path_basefootprint[target_index].y)) / sqrtf(powf((global_path_basefootprint[target_index].x), 2.) + powf((global_path_basefootprint[target_index].y), 2.))) / (M_PI);
+                                    cost_ang = acos((cos(path_cans[j][path_cans[j].size()-1].angle)*(global_path[target_index].x) + sin(path_cans[j][path_cans[j].size()-1].angle)*(global_path[target_index].y)) / sqrtf(powf((global_path[target_index].x), 2.) + powf((global_path[target_index].y), 2.))) / (M_PI);
                                     cost_dist = ((param.sum_max_speed*param.delta_time*param.predect_step) + 2*(param.robot_radius) - local_costs[j]) / ((param.sum_max_speed*param.delta_time*param.predect_step) + 1*(param.robot_radius));
-                                    cost_traj = last_position(velocitys[j], global_path_basefootprint[target_index]);
+                                    cost_traj = last_position(velocitys[j], global_path[target_index]);
                                     cost_vel *= param.velocity_weight;
                                     cost_ang *= param.angle_weight;
                                     cost_dist *= param.obstacle_distance_weight;
@@ -765,7 +607,7 @@ class PATH_MOVING
                                 {
                                     float cost_vel, cost_ang, cost_dist;
                                     cost_vel = (param.sum_max_speed - sqrtf(powf(velocitys[j].linear.x, 2.) + powf(velocitys[j].linear.y, 2.))) / (param.sum_max_speed);
-                                    cost_ang = acos((cos(path_cans[j][path_cans[j].size()-1].angle)*(global_path_basefootprint[target_index].x) + sin(path_cans[j][path_cans[j].size()-1].angle)*(global_path_basefootprint[target_index].y)) / sqrtf(powf((global_path_basefootprint[target_index].x), 2.) + powf((global_path_basefootprint[target_index].y), 2.))) / (M_PI);
+                                    cost_ang = acos((cos(path_cans[j][path_cans[j].size()-1].angle)*(global_path[target_index].x) + sin(path_cans[j][path_cans[j].size()-1].angle)*(global_path[target_index].y)) / sqrtf(powf((global_path[target_index].x), 2.) + powf((global_path[target_index].y), 2.))) / (M_PI);
                                     cost_dist = ((param.sum_max_speed*param.delta_time*param.predect_step) + 2*(param.robot_radius) - local_costs[j]) / ((param.sum_max_speed*param.delta_time*param.predect_step) + 1*(param.robot_radius));
                                     if (cost_dist <= sum_cost_dist)
                                     {
@@ -830,14 +672,15 @@ class PATH_MOVING
                     ros::spinOnce();
                     move_class.only_vel_pub(velocity);
                     ros::Duration(param.delta_time).sleep();
-                }
-                else
-                {
-                    ros::spinOnce();
-                    move_class.stop_vel();
-                    ros::spinOnce();
-                    continue;
-                }
+                // }
+                // else
+                // {
+                //     // ros::spinOnce();
+                //     // move_class.stop_vel();
+                //     // ros::spinOnce();
+                //     // continue;
+                //     break;
+                // }
             }
             velocity.linear.x = 0.;
             velocity.linear.y = 0.;
@@ -850,30 +693,6 @@ class PATH_MOVING
             ros::spinOnce();
             move_class.stop_vel();
             ros::spinOnce();
-            // while (ros::ok())
-            // {
-            //     if (target_angle.size() == 0)
-            //     {
-            //         break;
-            //     }
-            //     ros::spinOnce();
-            //     // float rotate_angle = acos(cos(robot_position.robot_theta)*cos(target_angle[target_angle.size() - 1]) + sin(robot_position.robot_theta)*sin(target_angle[target_angle.size() - 1])) * (((cos(robot_position.robot_theta)*sin(target_angle[target_angle.size() - 1])) - (sin(robot_position.robot_theta)*cos(target_angle[target_angle.size() - 1]))) / std::fabs((cos(robot_position.robot_theta)*sin(target_angle[target_angle.size() - 1])) - (sin(robot_position.robot_theta)*cos(target_angle[target_angle.size() - 1]))));
-            //     ROS_INFO("trun : %.4f",rotate_angle*180./M_PI);
-            //     if (std::fabs(rotate_angle) <= param.goal_angle_range)
-            //     {
-            //         break;
-            //     }
-            //     else
-            //     {
-            //         ROS_INFO("trun");
-            //         ros::spinOnce();
-            //         move_class.turn(param.max_angle_accel * param.delta_time, rotate_angle, param.goal_angle_range); 
-            //     }
-            // }
-            ros::spinOnce();
-            move_class.stop_vel();
-            ros::spinOnce();
-            global_path_map.clear();
         }
         void dynamic_window(double dw[2][2], geometry_msgs::Twist vel)
         {
@@ -1041,6 +860,30 @@ class PATH_MOVING
         float euclidean_distance(float x0, float y0, float x1, float y1)
         {
             return (sqrtf(powf((x1 - x0), 2.) + powf((y1 - y0), 2.)));
+        }
+        geometry_msgs::Point Pointtransform(const std::string& org_frame, const std::string& target_frame, const geometry_msgs::Point& point)
+        {
+            geometry_msgs::PointStamped ptstanp_transformed;
+            geometry_msgs::PointStamped ptstanp;
+            geometry_msgs::Point pt_transformed;
+            ptstanp.header.frame_id = org_frame;
+            ptstanp.header.stamp = ros::Time(0);
+            ptstanp.point = point;
+            try
+            {
+                tf_listener.transformPoint( target_frame, ptstanp, ptstanp_transformed );
+                pt_transformed.x = ptstanp_transformed.point.x;
+                pt_transformed.y = ptstanp_transformed.point.y;
+                pt_transformed.z = ptstanp_transformed.point.z;
+            }
+            catch( const tf::TransformException& ex )
+            {
+                ROS_ERROR( "%s",ex.what( ) );
+                pt_transformed.x = NAN;
+                pt_transformed.y = NAN;
+                pt_transformed.z = NAN;
+            }
+            return pt_transformed;
         }
 };
 

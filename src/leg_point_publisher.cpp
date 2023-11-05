@@ -20,6 +20,12 @@
 #include <navigation_stack/WalkLegPoint.h>
 #include <tf/transform_listener.h>
 
+
+#include <algorithm>
+
+#include <Eigen/Dense>
+using namespace Eigen;
+
 // using namespace std;
 
 class ALL_PARAMETER
@@ -90,9 +96,9 @@ class HUMAN_DETECT
 {
     private:
         ros::NodeHandle nh;
+        tf::TransformListener tf_listener;
         ros::Publisher pub_walk_leg;
         ros::Publisher pub_legremoval_scan;
-        tf::TransformListener tf_listener;
         ros::Subscriber leg_sub;
         ALL_PARAMETER all_parameter;
         // float lidar_pose[2] = {0.2, 0.0};
@@ -322,17 +328,36 @@ class HUMAN_DETECT
                             p1 = Pointtransform(all_parameter.map, all_parameter.robot_base, leg_points_steps.point1[i]);
                             p2 = Pointtransform(all_parameter.map, all_parameter.robot_base, leg_points_steps.point2[i]);
                             p3 = Pointtransform(all_parameter.map, all_parameter.robot_base, leg_points_steps.point3[i]);
-                            if ((p1.x != p2.x) && (p2.x != p3.x) && (p3.x != p1.x) && ((p1.y != p2.y) && (p2.y != p3.y) && (p3.y != p1.y)))
+                            MatrixXd A(3, 2);
+                            VectorXd B(3);
+                            A(0, 0) = p1.x;
+                            A(0, 1) = 1.0;
+                            B(0) = p1.y;
+                            A(1, 0) = p2.x;
+                            A(1, 1) = 1.0;
+                            B(1) = p2.y;
+                            A(2, 0) = p3.x;
+                            A(2, 1) = 1.0;
+                            B(2) = p3.y;
+                            Vector2d result = A.colPivHouseholderQr().solve(B);
+                            float d1 = std::fabs(result[0]*p1.x - 1*p1.y + result[1]) / sqrtf(powf(result[0], 2.) + 1.);
+                            float d2 = std::fabs(result[0]*p2.x - 1*p2.y + result[1]) / sqrtf(powf(result[0], 2.) + 1.);
+                            float d3 = std::fabs(result[0]*p3.x - 1*p3.y + result[1]) / sqrtf(powf(result[0], 2.) + 1.);
+                            if ((d1 <= all_parameter.human_noise/2.) && (d2 <= all_parameter.human_noise/2.) && (d3 <= all_parameter.human_noise/2.))
+                            {
+                                mode = 0;
+                            }
+                            else if ((p1.x != p2.x) && (p2.x != p3.x) && (p3.x != p1.x) && ((p1.y != p2.y) && (p2.y != p3.y) && (p3.y != p1.y)))
                             {
                                 if ((((p1.x < p2.x) && (p2.x < p3.x)) || ((p1.x > p2.x) && (p2.x > p3.x))) && (((p1.y < p2.y) && (p2.y < p3.y)) || ((p1.y > p2.y) && (p2.y > p3.y))))
                                 {
                                     float a_base_x, b_base_x, c_base_x, a_base_y, b_base_y, c_base_y;
                                     a_base_x = ((p1.y - p2.y) / ((p1.x - p2.x) * (p2.x - p3.x))) - ((p1.y - p3.y) / ((p1.x - p3.x) * (p2.x - p3.x)));
                                     b_base_x = (p1.y - p2.y) / (p1.x - p2.x) - a_base_x * (p1.x + p2.x);
-                                    c_base_x = p1.y - a_base_x * pow(p1.x, 2.) - b_base_x * p1.x;
+                                    c_base_x = p1.y - a_base_x * powf(p1.x, 2.) - b_base_x * p1.x;
                                     a_base_y = ((p1.x - p2.x) / ((p1.y - p2.y) * (p2.y - p3.y))) - ((p1.x - p3.x) / ((p1.y - p3.y) * (p2.y - p3.y)));
                                     b_base_y = (p1.x - p2.x) / (p1.y - p2.y) - a_base_y * (p1.y + p2.y);
-                                    c_base_y = p1.x - a_base_y * pow(p1.y, 2.) - b_base_y * p1.y;
+                                    c_base_y = p1.x - a_base_y * powf(p1.y, 2.) - b_base_y * p1.y;
                                     if ((((p1.x < p2.x) && (p2.x < p3.x) && (p3.x < ((-1)*(b_base_x / (2*a_base_x))))) || ((p1.x > p2.x) && (p2.x > p3.x) && (p3.x > ((-1)*(b_base_x / (2*a_base_x)))))) && 
                                         (((p1.y < p2.y) && (p2.y < p3.y) && (p3.y < ((-1)*(b_base_y / (2*a_base_y))))) || ((p1.y > p2.y) && (p2.y > p3.y) && (p3.y > ((-1)*(b_base_y / (2*a_base_y)))))))
                                     {
@@ -377,20 +402,61 @@ class HUMAN_DETECT
                                 mode = 0;
                             }
 
-                            if (mode == 0)
+                            if (true)
                             {
-                                leg_point_temp.x = leg_points_steps.point3[i].x + (leg_points_steps.point3[i].x - leg_points_steps.point2[i].x);
-                                leg_point_temp.y = leg_points_steps.point3[i].y + (leg_points_steps.point3[i].y - leg_points_steps.point2[i].y);
+                                float angle = atan(result[0]);
+                                if ((std::fabs(angle - atan2(p3.y - p2.y , p3.x - p2.x) - 2*M_PI) >= (M_PI/2.)) && (std::fabs(angle - atan2(p3.y - p2.y , p3.x - p2.x)) >= (M_PI/2.)) && (std::fabs(angle - atan2(p3.y - p2.y , p3.x -p2.x) + 2*M_PI) >= (M_PI/2.)))
+                                {
+                                    angle -= M_PI*(angle/std::fabs(angle));
+                                }
+                                float dist = (sqrtf(powf(p3.x - p2.x, 2.) + powf(p3.y - p2.y, 2.)) + sqrtf(powf(p2.x - p1.x, 2.) + powf(p2.y - p1.y, 2.))) / 0.5;
+                                leg_point_temp.x = p3.x + dist * cos(angle);
+                                leg_point_temp.y = p3.y + dist * sin(angle);
                                 leg_point_temp.z = 0.4;
-                                // leg_points_steps.point_next.push_back(leg_point_temp);
+                                if (leg_point_temp.x < 1.5)
+                                {
+                                    if (leg_point_temp.x < all_parameter.lidar_pose[0])
+                                    {
+                                        leg_point_temp.x = all_parameter.lidar_pose[0];
+                                        leg_point_temp.y = result[0] * leg_point_temp.x + result[1];
+                                    }
+                                    leg_points_steps.point_next.push_back(leg_point_temp);
+                                }
                             }
+                            // if (true)
+                            // {
+                            //     float angle = atan(result[0]);
+                            //     if ((std::fabs(angle - atan2(p3.y - p2.y , p3.x - p2.x) - 2*M_PI) >= (M_PI/2.)) && (std::fabs(angle - atan2(p3.y - p2.y , p3.x - p2.x)) >= (M_PI/2.)) && (std::fabs(angle - atan2(p3.y - p2.y , p3.x - p2.x) + 2*M_PI) >= (M_PI/2.)))
+                            //     {
+                            //         angle -= M_PI*(angle/std::fabs(angle));
+                            //     }
+                            //     float dist = (sqrtf(powf(p3.x - p2.x, 2.) + powf(p3.y - p2.y, 2.)) + sqrtf(powf(p2.x - p1.x, 2.) + powf(p2.y - p1.y, 2.))) / 0.5;
+                            //     leg_point_temp.x = p3.x + dist * cos(angle);
+                            //     leg_point_temp.y = p3.y + dist * sin(angle);
+                            //     leg_point_temp.z = 0.4;
+                            //     if (leg_point_temp.x < 1.5)
+                            //     {
+                            //         // if (leg_point_temp.x < all_parameter.lidar_pose[0])
+                            //         if (true)
+                            //         {
+                            //             leg_point_temp.x = all_parameter.lidar_pose[0];
+                            //             leg_point_temp.y = result[0] * leg_point_temp.x + result[1];
+                            //         }
+                            //         else if ((std::fabs(atan(result[0])) <= M_PI/4.) && (1.5 < std::fabs(leg_point_temp.y)))
+                            //         {
+                            //             leg_point_temp.y = 1.5 * (leg_point_temp.y / std::fabs(leg_point_temp.y));
+                            //             leg_point_temp.x = (leg_point_temp.y - result[1]) / result[0];
+                            //         }
+                            //         leg_points_steps.point_next.push_back(leg_point_temp);
+                            //     }
+                            // }
                             else if (mode == 1)
                             {
                                 a = ((p1.y - p2.y) / ((p1.x - p2.x) * (p2.x - p3.x))) - ((p1.y - p3.y) / ((p1.x - p3.x) * (p2.x - p3.x)));
                                 b = (p1.y - p2.y) / (p1.x - p2.x) - a * (p1.x + p2.x);
-                                c = p1.y - a * pow(p1.x, 2.) - b * p1.x;
+                                c = p1.y - a * powf(p1.x, 2.) - b * p1.x;
                                 leg_point_temp.x = all_parameter.lidar_pose[0];
-                                leg_point_temp.y = a * pow(leg_point_temp.x, 2.) + b * leg_point_temp.x + c;
+                                leg_point_temp.y = a * powf(leg_point_temp.x, 2.) + b * leg_point_temp.x + c;
                                 leg_point_temp.z = 0.4;
                                 // leg_points_steps.point_next.push_back(leg_point_temp);
                             }
@@ -398,28 +464,12 @@ class HUMAN_DETECT
                             {
                                 a = ((p1.x - p2.x) / ((p1.y - p2.y) * (p2.y - p3.y))) - ((p1.x - p3.x) / ((p1.y - p3.y) * (p2.y - p3.y)));
                                 b = (p1.x - p2.x) / (p1.y - p2.y) - a * (p1.y + p2.y);
-                                c = p1.x - a * pow(p1.y, 2.) - b * p1.y;
+                                c = p1.x - a * powf(p1.y, 2.) - b * p1.y;
                                 leg_point_temp.y = all_parameter.lidar_pose[1];
-                                leg_point_temp.x = a * pow(leg_point_temp.y, 2.) + b * leg_point_temp.y + c;
+                                leg_point_temp.x = a * powf(leg_point_temp.y, 2.) + b * leg_point_temp.y + c;
                                 leg_point_temp.z = 0.4;
                                 // leg_points_steps.point_next.push_back(leg_point_temp);
                             }
-                            leg_points_steps.point_next.push_back(leg_point_temp);
-                            // if ((p1.x != p2.x) && (p2.x != p3.x) && (p3.x != p1.x))
-                            // {
-                            //     a_base_x = ((p1.y - p2.y) / ((p1.x - p2.x) * (p2.x - p3.x))) - ((p1.y - p3.y) / ((p1.x - p3.x) * (p2.x - p3.x)));
-                            //     b_base_x = (p1.y - p2.y) / (p1.x - p2.x) - a_base_x * (p1.x + p2.x);
-                            //     c_base_x = p1.y - a_base_x * pow(p1.x, 2.) - b_base_x * p1.x;
-                            // }
-                            // if ((p1.y != p2.y) && (p2.y != p3.y) && (p3.x != p1.y))
-                            // {
-                            //     a_base_y = ((p1.x - p2.x) / ((p1.y - p2.y) * (p2.y - p3.y))) - ((p1.x - p3.x) / ((p1.y - p3.y) * (p2.y - p3.y)));
-                            //     b_base_y = (p1.x - p2.x) / (p1.y - p2.y) - a_base_y * (p1.y + p2.y);
-                            //     c_base_y = p1.x - a_base_y * pow(p1.y, 2.) - b_base_y * p1.y;
-                            // }
-                            // leg_point_temp.x = leg_points_steps.point3[i].x + (leg_points_steps.point3[i].x - leg_points_steps.point2[i].x);
-                            // leg_point_temp.y = leg_points_steps.point3[i].y + (leg_points_steps.point3[i].y - leg_points_steps.point2[i].y);
-                            // leg_point_temp.z = 0.4;
                             // leg_points_steps.point_next.push_back(leg_point_temp);
                         }
                     }

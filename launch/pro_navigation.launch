@@ -4,5 +4,6 @@
     <include file="$(find sobit_navigation)/launch/sobit_pro/sobit_pro_navigation_add_dr_spaam.launch"/>
     <node pkg="navigation_stack" type="leg_point_publisher" name="leg_point_publisher" output="screen"/>
     <node pkg="navigation_stack" type="leg_plot" name="leg_plot" output="screen"/>
+    <rosparam command="load" file="$(find navigation_stack)/param/prediction_leg_parameter.yaml"/>
 
 </launch>

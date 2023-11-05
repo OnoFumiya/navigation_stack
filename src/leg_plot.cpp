@@ -234,14 +234,26 @@ class PLOT
             {
                 cube_colors.assign(lidar_points.size(),red_color);
                 pub_marker_lidar.publish( marker_lib.makeMarkerList( visualization_msgs::Marker::POINTS, all_parameter.robot_base, "lidar_point", defalt_pose, lidar_points, point_scale, cube_colors, ros::Duration(1) ) );
-                cube_colors.assign(leg_points_steps.point1.size(),white_color);
-                pub_marker_leg1.publish( marker_lib.makeMarkerList( visualization_msgs::Marker::SPHERE_LIST, all_parameter.map, "point_list1", defalt_pose, leg_points_steps.point1, cylinder_scale, cube_colors, ros::Duration(1) ) );
-                cube_colors.assign(leg_points_steps.point2.size(),blue_color);
-                pub_marker_leg2.publish( marker_lib.makeMarkerList( visualization_msgs::Marker::SPHERE_LIST, all_parameter.map, "point_list2", defalt_pose, leg_points_steps.point2, cylinder_scale, cube_colors, ros::Duration(1) ) );
-                cube_colors.assign(leg_points_steps.point3.size(),green_color);
-                pub_marker_leg3.publish( marker_lib.makeMarkerList( visualization_msgs::Marker::SPHERE_LIST, all_parameter.map, "point_list3", defalt_pose, leg_points_steps.point3, cylinder_scale, cube_colors, ros::Duration(1) ) );
-                cube_colors.assign(leg_points_steps.point_next.size(),yellow_color);
-                pub_marker_leg_next.publish( marker_lib.makeMarkerList( visualization_msgs::Marker::SPHERE_LIST, all_parameter.robot_base, "point_next", defalt_pose, leg_points_steps.point_next, cylinder_scale, cube_colors, ros::Duration(1) ) );
+                if (leg_points_steps.point1.size() > 0)
+                {
+                    cube_colors.assign(leg_points_steps.point1.size(),white_color);
+                    pub_marker_leg1.publish( marker_lib.makeMarkerList( visualization_msgs::Marker::SPHERE_LIST, all_parameter.map, "point_list1", defalt_pose, leg_points_steps.point1, cylinder_scale, cube_colors, ros::Duration(1) ) );
+                }
+                if (leg_points_steps.point2.size() > 0)
+                {
+                    cube_colors.assign(leg_points_steps.point2.size(),blue_color);
+                    pub_marker_leg2.publish( marker_lib.makeMarkerList( visualization_msgs::Marker::SPHERE_LIST, all_parameter.map, "point_list2", defalt_pose, leg_points_steps.point2, cylinder_scale, cube_colors, ros::Duration(1) ) );
+                }
+                if (leg_points_steps.point3.size() > 0)
+                {
+                    cube_colors.assign(leg_points_steps.point3.size(),green_color);
+                    pub_marker_leg3.publish( marker_lib.makeMarkerList( visualization_msgs::Marker::SPHERE_LIST, all_parameter.map, "point_list3", defalt_pose, leg_points_steps.point3, cylinder_scale, cube_colors, ros::Duration(1) ) );
+                }
+                if (leg_points_steps.point_next.size() > 0)
+                {
+                    cube_colors.assign(leg_points_steps.point_next.size(),yellow_color);
+                    pub_marker_leg_next.publish( marker_lib.makeMarkerList( visualization_msgs::Marker::SPHERE_LIST, all_parameter.robot_base, "point_next", defalt_pose, leg_points_steps.point_next, cylinder_scale, cube_colors, ros::Duration(1) ) );
+                }
                 pub_leg_cost.publish(pcl);
                 ros::spinOnce();
             }
