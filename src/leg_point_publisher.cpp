@@ -441,7 +441,7 @@ class HUMAN_DETECT
                                         leg_point_temp.x = all_parameter.lidar_pose[0];
                                         leg_point_temp.y = result[0] * leg_point_temp.x + result[1];
                                     }
-                                    else if ((3*M_PI/4. <= std::fabs(angle)) && (1.5 < std::fabs(leg_point_temp.y)))
+                                    else if ((std::fabs(angle) <= 3*M_PI/4.) && (1.5 < std::fabs(leg_point_temp.y)))
                                     {
                                         leg_point_temp.y = 1.5 * (leg_point_temp.y / std::fabs(leg_point_temp.y));
                                         leg_point_temp.x = (leg_point_temp.y - result[1]) / result[0];
