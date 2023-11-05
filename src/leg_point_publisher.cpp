@@ -402,10 +402,31 @@ class HUMAN_DETECT
                                 mode = 0;
                             }
 
+                            // if (true)
+                            // {
+                            //     float angle = atan(result[0]);
+                            //     if ((std::fabs(angle - atan2(p3.y - p2.y , p3.x - p2.x) - 2*M_PI) >= (M_PI/2.)) && (std::fabs(angle - atan2(p3.y - p2.y , p3.x - p2.x)) >= (M_PI/2.)) && (std::fabs(angle - atan2(p3.y - p2.y , p3.x -p2.x) + 2*M_PI) >= (M_PI/2.)))
+                            //     {
+                            //         angle -= M_PI*(angle/std::fabs(angle));
+                            //     }
+                            //     float dist = (sqrtf(powf(p3.x - p2.x, 2.) + powf(p3.y - p2.y, 2.)) + sqrtf(powf(p2.x - p1.x, 2.) + powf(p2.y - p1.y, 2.))) / 0.5;
+                            //     leg_point_temp.x = p3.x + dist * cos(angle);
+                            //     leg_point_temp.y = p3.y + dist * sin(angle);
+                            //     leg_point_temp.z = 0.4;
+                            //     if (leg_point_temp.x < 1.5)
+                            //     {
+                            //         if (leg_point_temp.x < all_parameter.lidar_pose[0])
+                            //         {
+                            //             leg_point_temp.x = all_parameter.lidar_pose[0];
+                            //             leg_point_temp.y = result[0] * leg_point_temp.x + result[1];
+                            //         }
+                            //         leg_points_steps.point_next.push_back(leg_point_temp);
+                            //     }
+                            // }
                             if (true)
                             {
                                 float angle = atan(result[0]);
-                                if ((std::fabs(angle - atan2(p3.y - p2.y , p3.x - p2.x) - 2*M_PI) >= (M_PI/2.)) && (std::fabs(angle - atan2(p3.y - p2.y , p3.x - p2.x)) >= (M_PI/2.)) && (std::fabs(angle - atan2(p3.y - p2.y , p3.x -p2.x) + 2*M_PI) >= (M_PI/2.)))
+                                if ((std::fabs(angle - atan2(p3.y - p2.y , p3.x - p2.x) - 2*M_PI) >= (M_PI/2.)) && (std::fabs(angle - atan2(p3.y - p2.y , p3.x - p2.x)) >= (M_PI/2.)) && (std::fabs(angle - atan2(p3.y - p2.y , p3.x - p2.x) + 2*M_PI) >= (M_PI/2.)))
                                 {
                                     angle -= M_PI*(angle/std::fabs(angle));
                                 }
@@ -420,36 +441,14 @@ class HUMAN_DETECT
                                         leg_point_temp.x = all_parameter.lidar_pose[0];
                                         leg_point_temp.y = result[0] * leg_point_temp.x + result[1];
                                     }
+                                    else if ((3*M_PI/4. <= std::fabs(angle)) && (1.5 < std::fabs(leg_point_temp.y)))
+                                    {
+                                        leg_point_temp.y = 1.5 * (leg_point_temp.y / std::fabs(leg_point_temp.y));
+                                        leg_point_temp.x = (leg_point_temp.y - result[1]) / result[0];
+                                    }
                                     leg_points_steps.point_next.push_back(leg_point_temp);
                                 }
                             }
-                            // if (true)
-                            // {
-                            //     float angle = atan(result[0]);
-                            //     if ((std::fabs(angle - atan2(p3.y - p2.y , p3.x - p2.x) - 2*M_PI) >= (M_PI/2.)) && (std::fabs(angle - atan2(p3.y - p2.y , p3.x - p2.x)) >= (M_PI/2.)) && (std::fabs(angle - atan2(p3.y - p2.y , p3.x - p2.x) + 2*M_PI) >= (M_PI/2.)))
-                            //     {
-                            //         angle -= M_PI*(angle/std::fabs(angle));
-                            //     }
-                            //     float dist = (sqrtf(powf(p3.x - p2.x, 2.) + powf(p3.y - p2.y, 2.)) + sqrtf(powf(p2.x - p1.x, 2.) + powf(p2.y - p1.y, 2.))) / 0.5;
-                            //     leg_point_temp.x = p3.x + dist * cos(angle);
-                            //     leg_point_temp.y = p3.y + dist * sin(angle);
-                            //     leg_point_temp.z = 0.4;
-                            //     if (leg_point_temp.x < 1.5)
-                            //     {
-                            //         // if (leg_point_temp.x < all_parameter.lidar_pose[0])
-                            //         if (true)
-                            //         {
-                            //             leg_point_temp.x = all_parameter.lidar_pose[0];
-                            //             leg_point_temp.y = result[0] * leg_point_temp.x + result[1];
-                            //         }
-                            //         else if ((std::fabs(atan(result[0])) <= M_PI/4.) && (1.5 < std::fabs(leg_point_temp.y)))
-                            //         {
-                            //             leg_point_temp.y = 1.5 * (leg_point_temp.y / std::fabs(leg_point_temp.y));
-                            //             leg_point_temp.x = (leg_point_temp.y - result[1]) / result[0];
-                            //         }
-                            //         leg_points_steps.point_next.push_back(leg_point_temp);
-                            //     }
-                            // }
                             else if (mode == 1)
                             {
                                 a = ((p1.y - p2.y) / ((p1.x - p2.x) * (p2.x - p3.x))) - ((p1.y - p3.y) / ((p1.x - p3.x) * (p2.x - p3.x)));
