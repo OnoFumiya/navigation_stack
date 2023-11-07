@@ -40,6 +40,8 @@ class ALL_PARAMETER
         float max_human_radius = 0.80;
         float human_noise = 0.4;
         float detect_range_time = 0.1;
+        float x_weght_prediction = 2.0;
+        float y_weght_prediction = 1.3333;
         std::string robot_base = "base_footprint";
         std::string map = "map";
         std::string removal_scan_topic = "/dr_spaam_navigation/scan";
@@ -66,8 +68,14 @@ class ALL_PARAMETER
             max_human_radius = static_cast<double>(param);
             nh.getParam("human_noise", param);
             human_noise = static_cast<double>(param);
+            nh.getParam("x_weght_prediction", param);
+            x_weght_prediction = static_cast<double>(param);
+            nh.getParam("y_weght_prediction", param);
+            y_weght_prediction = static_cast<double>(param);
             nh.getParam("detect_range_time", param);
             detect_range_time = static_cast<double>(param);
+            nh.getParam("robot_base", param);
+            robot_base = static_cast<std::string>(param);
             nh.getParam("map", param);
             map = static_cast<std::string>(param);
             nh.getParam("removal_scan_topic", param);
@@ -144,7 +152,8 @@ class HUMAN_DETECT
                 point.x = msg.poses[i].position.x + all_parameter.lidar_pose[0];
                 point.y = msg.poses[i].position.y + all_parameter.lidar_pose[1];
                 point.z = 0.2;
-                if ((msg.scan.range_min <= sqrtf(powf(point.x, 2.) + powf(point.y, 2.))) && (sqrtf(powf(point.x, 2.) + powf(point.y, 2.)) <= msg.scan.range_max))
+                // if ((msg.scan.range_min <= sqrtf(powf(point.x, 2.) + powf(point.y, 2.))) && (sqrtf(powf(point.x, 2.) + powf(point.y, 2.)) <= msg.scan.range_max))
+                if ((0.25 <= sqrtf(powf(point.x, 2.) + powf(point.y, 2.))) && (sqrtf(powf(point.x, 2.) + powf(point.y, 2.)) <= msg.scan.range_max))
                 {
                     leg_points_base.push_back(point);
                     leg_points.push_back(Pointtransform(all_parameter.robot_base, all_parameter.map, point));
@@ -430,21 +439,22 @@ class HUMAN_DETECT
                                 {
                                     angle -= M_PI*(angle/std::fabs(angle));
                                 }
-                                float dist = (sqrtf(powf(p3.x - p2.x, 2.) + powf(p3.y - p2.y, 2.)) + sqrtf(powf(p2.x - p1.x, 2.) + powf(p2.y - p1.y, 2.))) / 0.5;
+                                float dist = (sqrtf(powf(p3.x - p2.x, 2.) + powf(p3.y - p2.y, 2.)) + sqrtf(powf(p2.x - p1.x, 2.) + powf(p2.y - p1.y, 2.))) * (sqrtf(powf(p3.x, 2.) + powf(p3.y, 2.)) * all_parameter.x_weght_prediction);
                                 leg_point_temp.x = p3.x + dist * cos(angle);
                                 leg_point_temp.y = p3.y + dist * sin(angle);
                                 leg_point_temp.z = 0.4;
-                                if (leg_point_temp.x < 1.5)
+                                if (leg_point_temp.x < (3.0 + 0.12))
                                 {
-                                    if (leg_point_temp.x < all_parameter.lidar_pose[0])
+                                    if (leg_point_temp.x < (all_parameter.lidar_pose[0] + 0.12))
                                     {
-                                        leg_point_temp.x = all_parameter.lidar_pose[0];
+                                        leg_point_temp.x = all_parameter.lidar_pose[0] + 0.12;
                                         leg_point_temp.y = result[0] * leg_point_temp.x + result[1];
                                     }
-                                    else if ((std::fabs(angle) <= 3*M_PI/4.) && (1.5 < std::fabs(leg_point_temp.y)))
+                                    if (std::fabs(angle) <= 3*M_PI/4.)
                                     {
-                                        leg_point_temp.y = 1.5 * (leg_point_temp.y / std::fabs(leg_point_temp.y));
-                                        leg_point_temp.x = (leg_point_temp.y - result[1]) / result[0];
+                                        dist = (sqrtf(powf(p3.x - p2.x, 2.) + powf(p3.y - p2.y, 2.)) + sqrtf(powf(p2.x - p1.x, 2.) + powf(p2.y - p1.y, 2.))) * (sqrtf(powf(p3.x, 2.) + powf(p3.y, 2.)) * all_parameter.y_weght_prediction);
+                                        leg_point_temp.x = p3.x + dist * cos(angle);
+                                        leg_point_temp.y = p3.y + dist * sin(angle);
                                     }
                                     leg_points_steps.point_next.push_back(leg_point_temp);
                                 }
@@ -457,7 +467,7 @@ class HUMAN_DETECT
                                 leg_point_temp.x = all_parameter.lidar_pose[0];
                                 leg_point_temp.y = a * powf(leg_point_temp.x, 2.) + b * leg_point_temp.x + c;
                                 leg_point_temp.z = 0.4;
-                                // leg_points_steps.point_next.push_back(leg_point_temp);
+                                leg_points_steps.point_next.push_back(leg_point_temp);
                             }
                             else if (mode == 2)
                             {
@@ -467,7 +477,7 @@ class HUMAN_DETECT
                                 leg_point_temp.y = all_parameter.lidar_pose[1];
                                 leg_point_temp.x = a * powf(leg_point_temp.y, 2.) + b * leg_point_temp.y + c;
                                 leg_point_temp.z = 0.4;
-                                // leg_points_steps.point_next.push_back(leg_point_temp);
+                                leg_points_steps.point_next.push_back(leg_point_temp);
                             }
                             // leg_points_steps.point_next.push_back(leg_point_temp);
                         }

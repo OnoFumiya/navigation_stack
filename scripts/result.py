@@ -30,11 +30,8 @@ def main(file_name):
     rospy.Subscriber("/odom", Odometry, callback_odom)
     rospy.Subscriber("/mobile_base/commands/velocity", Twist, callback_twist)
     r = rospy.Rate(10)
-    sum_dist = 0
-    last_pose = [0, 0]
-    sum_yaw = 0
     f = open(file_name_pass, 'w')
-    output_txt = "now_time" + "," + "vel_value" + "," + "sum_dist" + "," + "sum_yaw" + "\n"
+    output_txt = "time" + "," + "vel_linear_value" + "," + "vel_angular" + "," + "pose_x" + "," + "pose_y" + "\n"
     f.write(output_txt)
     f.close()
     while not rospy.is_shutdown():
@@ -45,16 +42,13 @@ def main(file_name):
         f = open(file_name_pass, 'a')
         now_time =  rospy.Time.now().to_sec() - init_time
         vel_value = math.sqrt(vel.linear.x**2 + vel.linear.y**2)
-        sum_dist += math.sqrt((pose_x - last_pose[0])**2 + (pose_y - last_pose[1])**2)
-        sum_yaw += vel.angular.z * 0.1
         output_txt  = str(now_time) + ","
         output_txt += str(vel_value) + ","
-        output_txt += str(sum_dist) + ","
-        output_txt += str(sum_yaw) + "\n"
+        output_txt += str(vel.angular.z) + ","
+        output_txt += str(pose_x) + ","
+        output_txt += str(pose_y) + "\n"
         f.write(output_txt)
         f.close()
-        last_pose[0] = pose_x
-        last_pose[1] = pose_y
         r.sleep()
 
 if __name__ == '__main__':

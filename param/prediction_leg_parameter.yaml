@@ -1,9 +1,11 @@
 lidar_pose : [0.2, 0.0]
-sampling_step : 5
+sampling_step : 6
 max_human_vel : 1.5
 max_human_radius : 0.80
 human_noise : 0.4
 detect_range_time : 0.1
+x_weght_prediction : 2.0
+y_weght_prediction : 1.3333
 robot_base : "base_footprint"
 map : "map"
 removal_scan_topic : "/dr_spaam_navigation/scan"
