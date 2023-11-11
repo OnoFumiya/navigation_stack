@@ -40,8 +40,8 @@ class ALL_PARAMETER
         float max_human_radius = 0.80;
         float human_noise = 0.4;
         float detect_range_time = 0.1;
-        float x_weght_prediction = 2.0;
-        float y_weght_prediction = 1.3333;
+        float velocity_weight_prediction = 2.0;
+        float position_weight_prediction = 1.3333;
         std::string robot_base = "base_footprint";
         std::string map = "map";
         std::string removal_scan_topic = "/dr_spaam_navigation/scan";
@@ -68,10 +68,10 @@ class ALL_PARAMETER
             max_human_radius = static_cast<double>(param);
             nh.getParam("human_noise", param);
             human_noise = static_cast<double>(param);
-            nh.getParam("x_weght_prediction", param);
-            x_weght_prediction = static_cast<double>(param);
-            nh.getParam("y_weght_prediction", param);
-            y_weght_prediction = static_cast<double>(param);
+            nh.getParam("velocity_weight_prediction", param);
+            velocity_weight_prediction = static_cast<double>(param);
+            nh.getParam("position_weight_prediction", param);
+            position_weight_prediction = static_cast<double>(param);
             nh.getParam("detect_range_time", param);
             detect_range_time = static_cast<double>(param);
             nh.getParam("robot_base", param);
@@ -439,7 +439,7 @@ class HUMAN_DETECT
                                 {
                                     angle -= M_PI*(angle/std::fabs(angle));
                                 }
-                                float dist = (sqrtf(powf(p3.x - p2.x, 2.) + powf(p3.y - p2.y, 2.)) + sqrtf(powf(p2.x - p1.x, 2.) + powf(p2.y - p1.y, 2.))) * (sqrtf(powf(p3.x, 2.) + powf(p3.y, 2.)) * all_parameter.x_weght_prediction);
+                                float dist = sqrtf(powf(p3.x - p2.x, 2.) + powf(p3.y - p2.y, 2.)) + sqrtf(powf(p2.x - p1.x, 2.) + powf(p2.y - p1.y, 2.)) * all_parameter.velocity_weight_prediction;
                                 leg_point_temp.x = p3.x + dist * cos(angle);
                                 leg_point_temp.y = p3.y + dist * sin(angle);
                                 leg_point_temp.z = 0.4;
@@ -452,7 +452,7 @@ class HUMAN_DETECT
                                     }
                                     if (std::fabs(angle) <= 3*M_PI/4.)
                                     {
-                                        dist = (sqrtf(powf(p3.x - p2.x, 2.) + powf(p3.y - p2.y, 2.)) + sqrtf(powf(p2.x - p1.x, 2.) + powf(p2.y - p1.y, 2.))) * (sqrtf(powf(p3.x, 2.) + powf(p3.y, 2.)) * all_parameter.y_weght_prediction);
+                                        dist = (sqrtf(powf(p3.x - p2.x, 2.) + powf(p3.y - p2.y, 2.)) + sqrtf(powf(p2.x - p1.x, 2.) + powf(p2.y - p1.y, 2.)) * all_parameter.velocity_weight_prediction) * (sqrtf(powf(p3.x, 2.) + powf(p3.y, 2.)) * all_parameter.position_weight_prediction);
                                         leg_point_temp.x = p3.x + dist * cos(angle);
                                         leg_point_temp.y = p3.y + dist * sin(angle);
                                     }
