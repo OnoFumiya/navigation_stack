@@ -388,37 +388,7 @@ class PATH_MOVING
                     }
                 }
                 ros::spinOnce();
-                // if (global_path.size()>0)
-                // {
                     int potential_goal = 0;
-                    ////////////////////////////////////////////
-                    // geometry_msgs::PointStamped pt_transformed;
-                    // geometry_msgs::PointStamped pt;
-                    // pt.header.frame_id = "map";
-                    // pt.header.stamp = ros::Time(0);
-                    // for (int i=0; i<global_path_map.size(); i++)
-                    // {
-                    //     pt.point.x = global_path_map[i].x;
-                    //     pt.point.y = global_path_map[i].y;
-                    //     pt.point.z = global_path_map[i].z;
-                    //     try
-                    //     {
-                    //         tf_listener_.transformPoint( "base_footprint", pt, pt_transformed );
-                    //         global_path_basefootprint.push_back(pt_transformed.point);
-                    //     }
-                    //     catch ( const tf::TransformException& ex )
-                    //     {}
-                    // }
-                    // if (global_path_basefootprint.size() == 0)
-                    // {
-                    //     continue;
-                    // }
-                    ///////////////////////////////////////////////
-                    // if (euclidean_distance(0., 0., global_path_basefootprint[global_path_basefootprint.size()-1].x, global_path_basefootprint[global_path_basefootprint.size()-1].y) <= dwa_param.goal_position_range)
-                    // {
-                    //     break;
-                    // }
-                    ///////////////////////////////////////////////
                     if (end_flag)
                     {
                         break;

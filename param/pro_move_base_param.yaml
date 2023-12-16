@@ -5,14 +5,14 @@ max_speed_x : 0.30
 min_speed_x : 0.00
 max_speed_y :  0.20
 min_speed_y : -0.20
-float max_angle : 0.873 # 約50°
-float max_angle_y : 0.523 # 約30°
+max_angle : 0.523 # 約30°
+max_angle_y : 0.523 # 約30°
 
 # accel
 max_accel_x : 0.35
 max_accel_y : 0.30
 max_angle_accel : 0.523 # 約30°
-max_angle_accel_y : 0.873 # 約50°
+max_angle_accel_y : 0.523 # 約30°
 
 # weight
 velocity_weight : 1.0

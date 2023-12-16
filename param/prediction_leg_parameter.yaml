@@ -4,7 +4,7 @@ max_human_vel : 0.7
 max_human_radius : 0.35
 human_noise : 0.3
 detect_range_time : 0.1
-velocity_weight_prediction : 5.0
+velocity_weight_prediction : 1.5
 position_weight_prediction : 1.4
 robot_base : "base_footprint"
 map : "map"

@@ -1,4 +1,5 @@
 <launch>
+    <arg name="file_name" default="new_cross_fst"/>
 
     <include file="$(find dr_spaam_ros)/launch/dr_spaam_ros.launch"/>
     <include file="$(find sobit_navigation)/launch/sobit_pro/sobit_pro_navigation_add_dr_spaam.launch"/>
@@ -7,4 +8,6 @@
     <rosparam command="load" file="$(find navigation_stack)/param/prediction_leg_parameter.yaml"/>
     <rosparam command="load" file="$(find navigation_stack)/param/pro_move_base_param.yaml"/>
 
+    <!-- <node pkg="navigation_stack" type="result.py" name="result" output="screen" arg="$(arg file_name)"/>
+    <node pkg="navigation_stack" type="goal_pose_publisher.py" name="goal_pose_publisher" output="screen" arg="10"/> -->
 </launch>
