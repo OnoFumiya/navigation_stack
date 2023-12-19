@@ -5,7 +5,7 @@ max_human_radius : 0.35
 human_noise : 0.3
 detect_range_time : 0.1
 velocity_weight_prediction : 1.5
-position_weight_prediction : 1.4
+position_weight_prediction : 1.7
 robot_base : "base_footprint"
 map : "map"
 removal_scan_topic : "/dr_spaam_navigation/scan"
