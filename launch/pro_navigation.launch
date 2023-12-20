@@ -1,8 +1,11 @@
 <launch>
     <arg name="file_name" default="new_cross_fst"/>
+    <arg name="ydwa" default="true"/>
 
     <include file="$(find dr_spaam_ros)/launch/dr_spaam_ros.launch"/>
-    <include file="$(find sobit_navigation)/launch/sobit_pro/sobit_pro_navigation_add_dr_spaam.launch"/>
+    <include file="$(find sobit_navigation)/launch/sobit_pro/sobit_pro_navigation_add_dr_spaam.launch">
+        <arg name="ydwa" value="$(arg ydwa)"/>
+    </include>
     <node pkg="navigation_stack" type="leg_point_publisher" name="leg_point_publisher" output="screen"/>
     <node pkg="navigation_stack" type="leg_plot" name="leg_plot" output="screen"/>
     <rosparam command="load" file="$(find navigation_stack)/param/prediction_leg_parameter.yaml"/>
