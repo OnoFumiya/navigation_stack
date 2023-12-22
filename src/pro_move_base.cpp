@@ -322,8 +322,7 @@ class PATH_MOVING
                 pt.x = get_path.poses[i].pose.position.x;
                 pt.y = get_path.poses[i].pose.position.y;
                 pt.z = get_path.poses[i].pose.position.z;
-                // global_path_map.push_back(pt);
-                global_path.push_back(Pointtransform("map", "base_footprint", pt));
+                global_path.push_back(Pointtransform("odom", "base_footprint", pt));
                 end_flag = false;
             }
             if (0 < global_path.size())
@@ -338,7 +337,8 @@ class PATH_MOVING
         PATH_MOVING()
         {
             ros::NodeHandle node;
-            sub_globalpath = node.subscribe("move_base/GlobalPlanner/plan", 10, &PATH_MOVING::callback_globalpath, this);
+            // sub_globalpath = node.subscribe("/move_base/GlobalPlanner/plan", 10, &PATH_MOVING::callback_globalpath, this);
+            sub_globalpath = node.subscribe("/move_base/DWAPlannerROS/global_plan", 10, &PATH_MOVING::callback_globalpath, this);
             pub_ydwa_trigger = node.advertise<std_msgs::Bool>("/move_base_simple/ydwa_swiching_trigger", 10);
             move_control();
         }
@@ -366,7 +366,7 @@ class PATH_MOVING
             MOVE_CLASS move_class;
             geometry_msgs::Vector3 vec;
             geometry_msgs::Twist velocity;
-            navigation_stack::PathPoint local_path;
+            // navigation_stack::PathPoint local_path;
             std_msgs::Bool data;
             data.data = false;
             velocity.linear.x = 0.;
@@ -375,28 +375,12 @@ class PATH_MOVING
             velocity.angular.x = 0.;
             velocity.angular.y = 0.;
             velocity.angular.z = 0.;
-            double dw[2][2] = {{velocity.linear.x, velocity.linear.x}, {velocity.angular.z, velocity.angular.z}};
+            double dw[2][2] = {{velocity.linear.y, velocity.linear.y}, {velocity.angular.z, velocity.angular.z}};
             int target_index = 0;
-            // tf::TransformListener tf_listener_;
+            bool stack_right_is = true;
             while (ros::ok())
             {
-                if (global_path.size() <= 0)
-                {
-                    if (end_flag)
-                    {
-                        break;
-                    }
-                    else
-                    {
-                        continue;
-                    }
-                }
                 ros::spinOnce();
-                int potential_goal = 0;
-                if (end_flag)
-                {
-                    break;
-                }
                 float min_dist = std::numeric_limits<float>::max();
                 for (int i=0; i<global_path.size(); i++)
                 {
@@ -415,40 +399,70 @@ class PATH_MOVING
                     target_index = global_path.size() - 1;
                 }
                 bool y_challenge = false;
-                for (int i=target_index; i<global_path.size(); i++)
+                int target_indexg;
+                for (int i=global_path.size()-1; i>=target_index; i--)
                 {
-                    if ((-1.5 <= global_path[i].x) && (global_path[i].x <= 1.5) && (-1.5 <= global_path[i].y) && (global_path[i].y <= 1.5))
+                    if (euclidean_distance(global_path[global_path.size()-1].x, global_path[global_path.size()-1].y, global_path[i].x, global_path[i].y) >= dwa_param.goal_position_range)
                     {
-                        potential_goal = i;
+                        target_indexg = i;
+                        break;
                     }
-                    else
+                }
+                if (2 <= (global_path.size()-target_indexg))
+                {
+                    MatrixXd Ag(global_path.size()-target_indexg, 2);
+                    VectorXd bg(global_path.size()-target_indexg);
+                    for (int i=target_indexg; i<global_path.size(); i++)
                     {
-                        if (1.5 < global_path[i].x)
+                        Ag(i-target_indexg, 0) = global_path[i].x;
+                        Ag(i-target_indexg, 1) = 1.0;
+                        bg(i-target_indexg) = global_path[i].y;
+                    }
+                    Vector2d resultg = Ag.colPivHouseholderQr().solve(bg);
+                    float path_angle_g = atan(resultg[0]);
+                    if (std::fabs(path_angle_g) < 20*M_PI/180.)
+                    {
+                        if (0 < global_path[global_path.size()-1].x)
                         {
                             y_challenge = true;
                         }
-                        break;
                     }
                 }
                 float local_goal_angle = 0.;
                 int linaer_y_point = target_index;
+                bool right_is = true;
                 if (y_challenge)
                 {
-                    // float path_angle = atan2(global_path[i].y, global_path[i].x)
-                    MatrixXd A(target_index + 1, 2);
-                    VectorXd b(target_index + 1);
-                    for (int i=0; i<=target_index; i++)
+                    if (2 <= (target_index+1))
                     {
-                        A(i, 0) = global_path[i].x;
-                        A(i, 1) = 1.0;
-                        b(i) = global_path[i].y;
+                        MatrixXd A(target_index + 1, 2);
+                        VectorXd b(target_index + 1);
+                        for (int i=0; i<=target_index; i++)
+                        {
+                            A(i, 0) = global_path[i].x;
+                            A(i, 1) = 1.0;
+                            b(i) = global_path[i].y;
+                        }
+                        if (0 <= global_path[target_index].y)
+                        {
+                            right_is = false;
+                        }
+                        Vector2d result = A.colPivHouseholderQr().solve(b);
+                        float path_angle = atan(result[0]);
+                        if (((0 <= path_angle) && (path_angle < dwa_param.linear_y_angle_range)) || ((path_angle < 0) && (((-1)*dwa_param.linear_y_angle_range) < path_angle)))
+                        {
+                            y_challenge = false;
+                        }
                     }
-                    Vector2d result = A.colPivHouseholderQr().solve(b);
-                    float path_angle = atan(result[0]);
-                    if ((std::fabs(path_angle) < (M_PI / 2. - dwa_param.linear_y_angle_range)) || ((M_PI/2. + dwa_param.linear_y_angle_range) < std::fabs(path_angle)))
+                    else
                     {
                         y_challenge = false;
                     }
+                }
+                if (stack_right_is == right_is)
+                {
+                    stack_right_is = right_is;
+                    velocity.angular.z = 0.;
                 }
                 std::vector<std::vector<TRAJECTORY_NODE>> path_cans;
                 std::vector<float> local_costs;
@@ -476,6 +490,7 @@ class PATH_MOVING
                     path_cans.clear();
                     local_costs.clear();
                     velocitys.clear();
+                    ROS_INFO("velocity.linear = %.2f, %.2f, velocity.angular = %.2f, %.2f",dw[0][0],dw[0][1],dw[1][0],dw[1][1]);
                     for (vel.linear.y=dw[0][0]; vel.linear.y<=dw[0][1]; vel.linear.y+=dwa_param.speed_reso_y)
                     {
                         for (vel.angular.z=dw[1][0]; vel.angular.z<=dw[1][1]; vel.angular.z+=dwa_param.speed_reso_ang)
@@ -493,76 +508,29 @@ class PATH_MOVING
                     }
                     float sum_cost = std::numeric_limits<float>::max();
                     best_index = -1;
-                    for (int i=0; i<2; i++)
+                    // float cost_vel = std::numeric_limits<float>::max();
+                    // float cost_ang = std::numeric_limits<float>::max();
+                    // float cost_dist = std::numeric_limits<float>::max();
+                    // float cost_traj = std::numeric_limits<float>::max();
+                    for (int i=0; i<path_cans.size(); i++)
                     {
-                        if (i==0)
+                        // if (local_costs[i] < dwa_param.robot_radius)
+                        // {
+                        //     continue;
+                        // }
+                        float cost_vel = (dwa_param.sum_max_speed - sqrtf(powf(velocitys[i].linear.x, 2.) + powf(velocitys[i].linear.y, 2.))) / (dwa_param.sum_max_speed);
+                        float cost_ang = acos((cos(path_cans[i][path_cans[i].size()-1].angle)*(global_path[target_index].x) + sin(path_cans[i][path_cans[i].size()-1].angle)*(global_path[target_index].y)) / sqrtf(powf((global_path[target_index].x), 2.) + powf((global_path[target_index].y), 2.))) / (M_PI);
+                        float cost_dist = ((dwa_param.sum_max_speed*dwa_param.delta_time*dwa_param.predect_step) + 2*(dwa_param.robot_radius) - local_costs[i]) / ((dwa_param.sum_max_speed*dwa_param.delta_time*dwa_param.predect_step) + 1*(dwa_param.robot_radius));
+                        // float cost_traj = last_position(velocitys[j], global_path[target_index]);
+                        float cost_traj = euclidean_distance(path_cans[i][-1].node.x, path_cans[i][-1].node.y, 0., 0.);
+                        cost_vel *= dwa_param.velocity_weight;
+                        cost_ang *= dwa_param.angle_weight;
+                        cost_dist *= dwa_param.obstacle_distance_weight;
+                        cost_traj *= dwa_param.trajectory_weight;
+                        if ((cost_vel + cost_ang + cost_dist + cost_traj) <= sum_cost)
                         {
-                            for (int j=0; j<path_cans.size(); j++)
-                            {
-                                if (local_costs[j] < dwa_param.robot_radius)
-                                {
-                                    continue;
-                                }
-                                float cost_vel, cost_ang, cost_dist, cost_traj;
-                                cost_vel = (dwa_param.sum_max_speed - sqrtf(powf(velocitys[j].linear.x, 2.) + powf(velocitys[j].linear.y, 2.))) / (dwa_param.sum_max_speed);
-                                cost_ang = acos((cos(path_cans[j][path_cans[j].size()-1].angle)*(global_path[target_index].x) + sin(path_cans[j][path_cans[j].size()-1].angle)*(global_path[target_index].y)) / sqrtf(powf((global_path[target_index].x), 2.) + powf((global_path[target_index].y), 2.))) / (M_PI);
-                                cost_dist = ((dwa_param.sum_max_speed*dwa_param.delta_time*dwa_param.predect_step) + 2*(dwa_param.robot_radius) - local_costs[j]) / ((dwa_param.sum_max_speed*dwa_param.delta_time*dwa_param.predect_step) + 1*(dwa_param.robot_radius));
-                                cost_traj = last_position(velocitys[j], global_path[target_index]);
-                                cost_vel *= dwa_param.velocity_weight;
-                                cost_ang *= dwa_param.angle_weight;
-                                cost_dist *= dwa_param.obstacle_distance_weight;
-                                cost_traj *= dwa_param.trajectory_weight;
-                                if ((cost_vel + cost_ang + cost_dist + cost_traj) <= sum_cost)
-                                {
-                                    sum_cost = cost_vel + cost_ang + cost_dist + cost_traj;
-                                    best_index = j;
-                                }
-                            }
-                        }
-                        else
-                        {
-                            sum_cost = (-1)*std::numeric_limits<float>::max();
-                            float sum_cost_vel = std::numeric_limits<float>::max();
-                            float sum_cost_ang = std::numeric_limits<float>::max();
-                            float sum_cost_dist = std::numeric_limits<float>::max();
-                            for (int j=0; j<path_cans.size(); j++)
-                            {
-                                float cost_vel, cost_ang, cost_dist;
-                                cost_vel = (dwa_param.sum_max_speed - sqrtf(powf(velocitys[j].linear.x, 2.) + powf(velocitys[j].linear.y, 2.))) / (dwa_param.sum_max_speed);
-                                cost_ang = acos((cos(path_cans[j][path_cans[j].size()-1].angle)*(global_path[target_index].x) + sin(path_cans[j][path_cans[j].size()-1].angle)*(global_path[target_index].y)) / sqrtf(powf((global_path[target_index].x), 2.) + powf((global_path[target_index].y), 2.))) / (M_PI);
-                                cost_dist = ((dwa_param.sum_max_speed*dwa_param.delta_time*dwa_param.predect_step) + 2*(dwa_param.robot_radius) - local_costs[j]) / ((dwa_param.sum_max_speed*dwa_param.delta_time*dwa_param.predect_step) + 1*(dwa_param.robot_radius));
-                                if (cost_dist <= sum_cost_dist)
-                                {
-                                    if (std::fabs(cost_dist - sum_cost_dist) <= 0.01)
-                                    {
-                                        if (cost_ang <= sum_cost_ang)
-                                        {
-                                            if (std::fabs(cost_ang - sum_cost_ang) <= 0.01)
-                                            {
-                                                if (cost_vel <= sum_cost_vel)
-                                                {
-                                                    sum_cost_vel = cost_vel;
-                                                    best_index = j;
-                                                }
-                                            }
-                                            else
-                                            {
-                                                sum_cost_ang = cost_ang;
-                                                best_index = j;
-                                            }
-                                        }
-                                    }
-                                    else
-                                    {
-                                        sum_cost_dist = cost_dist;
-                                        best_index = j;
-                                    }
-                                }
-                            }
-                        }
-                        if (best_index != -1)
-                        {
-                            break;
+                            sum_cost = cost_vel + cost_ang + cost_dist + cost_traj;
+                            best_index = i;
                         }
                     }
                     if (best_index == -1)
@@ -576,13 +544,6 @@ class PATH_MOVING
                     }
                     else
                     {
-                        for (int i=0; i<path_cans[best_index].size(); i++)
-                        {
-                            vec.x = path_cans[best_index][i].node.x;
-                            vec.y = path_cans[best_index][i].node.y;
-                            vec.z = 0.;
-                            local_path.poses.push_back(vec);
-                        }
                         velocity.linear.x = velocitys[best_index].linear.x;
                         velocity.linear.y = velocitys[best_index].linear.y;
                         velocity.linear.z = velocitys[best_index].linear.z;
@@ -591,10 +552,13 @@ class PATH_MOVING
                         velocity.angular.z = velocitys[best_index].angular.z;
                     }
                     ros::spinOnce();
-                    move_class.only_vel_pub(velocity);
+                    // ROS_INFO("velocity.linear = %.2f, %.2f, velocity.angular.z = %.2f",velocity.linear.x,velocity.linear.y,velocity.angular.z);
+                    // move_class.only_vel_pub(velocity);
                 }
                 else
                 {
+                    velocity.linear.y = 0.;
+                    velocity.angular.z = 0.;
                     data.data = true;
                     pub_ydwa_trigger.publish(data);
                 }
@@ -719,62 +683,66 @@ class PATH_MOVING
             }
             return min_cost;
         }
-        float last_position(geometry_msgs::Twist v, geometry_msgs::Point t_pt)
-        {
-            std::vector<TRAJECTORY_NODE> path_can;
-            TRAJECTORY_NODE pt;
-            pt.node.x = 0.;
-            pt.node.y = 0.;
-            pt.node.z = 0.;
-            pt.angle = 0.;
-            // float min_cost = std::numeric_limits<float>::max();
-            float theta = atan2(v.linear.y * dwa_param.delta_time, v.linear.x * dwa_param.delta_time);
-            if ((v.angular.z == 0.) || (sqrtf(powf(v.linear.x, 2.) + powf(v.linear.y, 2.)) == 0.))
-            {
-                if ((sqrtf(powf(v.linear.x, 2.) + powf(v.linear.y, 2.)) == 0.))
-                {
-                    for (int i=0; i<dwa_param.predect_step; i++)
-                    {
-                        pt.angle += v.angular.z * dwa_param.delta_time;
-                        path_can.push_back(pt);
-                    }
-                }
-                else
-                {
-                    for (int i=0; i<dwa_param.predect_step; i++)
-                    {
-                        pt.node.x += sqrtf(powf(v.linear.x * dwa_param.delta_time, 2.) + powf(v.linear.y * dwa_param.delta_time, 2.)) * cos(theta);
-                        pt.node.y += sqrtf(powf(v.linear.x * dwa_param.delta_time, 2.) + powf(v.linear.y * dwa_param.delta_time, 2.)) * sin(theta);
-                        path_can.push_back(pt);
-                    }
-                }
-            }
-            else
-            {
-                float base_angle = atan2(v.linear.y * dwa_param.delta_time, v.linear.x * dwa_param.delta_time) + (M_PI / 2.)*((v.angular.z * dwa_param.delta_time) / std::fabs(v.angular.z * dwa_param.delta_time));
-                float circle_radius = (sqrtf(powf(v.linear.x * dwa_param.delta_time, 2.) + powf(v.linear.y * dwa_param.delta_time, 2.))) / std::fabs(v.angular.z * dwa_param.delta_time);
-                geometry_msgs::Point circle_pt;
-                circle_pt.x = circle_radius * cos(base_angle);
-                circle_pt.y = circle_radius * sin(base_angle);
-                for (int i=0; i<dwa_param.predect_step; i++)
-                {
-                    float temp_x = pt.node.x;
-                    float temp_y = pt.node.y;
-                    pt.node.x = (temp_x - circle_pt.x) * cos(v.angular.z * dwa_param.delta_time) - (temp_y - circle_pt.y) * sin(v.angular.z * dwa_param.delta_time) + circle_pt.x;
-                    pt.node.y = (temp_x - circle_pt.x) * sin(v.angular.z * dwa_param.delta_time) + (temp_y - circle_pt.y) * cos(v.angular.z * dwa_param.delta_time) + circle_pt.y;
-                    pt.angle += v.angular.z * dwa_param.delta_time;
-                    path_can.push_back(pt);
-                }
-            }
-            // for (int i=0; i<obstacle_dist.range_point.size(); i++)
-            // {
-            //     if (euclidean_distance(path_can[path_can.size()-1].node.x, path_can[path_can.size()-1].node.y, obstacle_dist.range_point[i].x, obstacle_dist.range_point[i].y) < min_cost)
-            //     {
-            //         min_cost = euclidean_distance(path_can[path_can.size()-1].node.x, path_can[path_can.size()-1].node.y, obstacle_dist.range_point[i].x, obstacle_dist.range_point[i].y);
-            //     }
-            // }
-            return euclidean_distance(path_can[path_can.size()-1].node.x, path_can[path_can.size()-1].node.y, t_pt.x, t_pt.y);
-        }
+        // float last_position(geometry_msgs::Twist v, geometry_msgs::Point t_pt)
+        // {
+        //     geometry_msgs::Point pt;
+        //     if (sqrtf(powf(v.linear.x, 2.) + powf(v.linear.y, 2.)) <= 0)
+        //     {
+        //         pt.x = t_pt.x;
+        //         pt.y = t_pt.y;
+        //         pt.z = t_pt.z;
+        //     }
+        //     else
+        //     {
+        //         float base_theta = atan2(v.linear.y * dwa_param.delta_time, v.linear.x * dwa_param.delta_time);
+        //     }
+        //     // std::vector<TRAJECTORY_NODE> path_can;
+        //     // TRAJECTORY_NODE pt;
+        //     // pt.node.x = 0.;
+        //     // pt.node.y = 0.;
+        //     // pt.node.z = 0.;
+        //     // pt.angle = 0.;
+        //     // float theta = atan2(v.linear.y * dwa_param.delta_time, v.linear.x * dwa_param.delta_time);
+        //     // if ((v.angular.z == 0.) || (sqrtf(powf(v.linear.x, 2.) + powf(v.linear.y, 2.)) == 0.))
+        //     // {
+        //     //     if ((sqrtf(powf(v.linear.x, 2.) + powf(v.linear.y, 2.)) == 0.))
+        //     //     {
+        //     //         for (int i=0; i<dwa_param.predect_step; i++)
+        //     //         {
+        //     //             pt.angle += v.angular.z * dwa_param.delta_time;
+        //     //             path_can.push_back(pt);
+        //     //         }
+        //     //     }
+        //     //     else
+        //     //     {
+        //     //         for (int i=0; i<dwa_param.predect_step; i++)
+        //     //         {
+        //     //             pt.node.x += sqrtf(powf(v.linear.x * dwa_param.delta_time, 2.) + powf(v.linear.y * dwa_param.delta_time, 2.)) * cos(theta);
+        //     //             pt.node.y += sqrtf(powf(v.linear.x * dwa_param.delta_time, 2.) + powf(v.linear.y * dwa_param.delta_time, 2.)) * sin(theta);
+        //     //             path_can.push_back(pt);
+        //     //         }
+        //     //     }
+        //     // }
+        //     // else
+        //     // {
+        //     //     float base_angle = atan2(v.linear.y * dwa_param.delta_time, v.linear.x * dwa_param.delta_time) + (M_PI / 2.)*((v.angular.z * dwa_param.delta_time) / std::fabs(v.angular.z * dwa_param.delta_time));
+        //     //     float circle_radius = (sqrtf(powf(v.linear.x * dwa_param.delta_time, 2.) + powf(v.linear.y * dwa_param.delta_time, 2.))) / std::fabs(v.angular.z * dwa_param.delta_time);
+        //     //     geometry_msgs::Point circle_pt;
+        //     //     circle_pt.x = circle_radius * cos(base_angle);
+        //     //     circle_pt.y = circle_radius * sin(base_angle);
+        //     //     for (int i=0; i<dwa_param.predect_step; i++)
+        //     //     {
+        //     //         float temp_x = pt.node.x;
+        //     //         float temp_y = pt.node.y;
+        //     //         pt.node.x = (temp_x - circle_pt.x) * cos(v.angular.z * dwa_param.delta_time) - (temp_y - circle_pt.y) * sin(v.angular.z * dwa_param.delta_time) + circle_pt.x;
+        //     //         pt.node.y = (temp_x - circle_pt.x) * sin(v.angular.z * dwa_param.delta_time) + (temp_y - circle_pt.y) * cos(v.angular.z * dwa_param.delta_time) + circle_pt.y;
+        //     //         pt.angle += v.angular.z * dwa_param.delta_time;
+        //     //         path_can.push_back(pt);
+        //     //     }
+        //     // }
+        //     // return euclidean_distance(path_can[path_can.size()-1].node.x, path_can[path_can.size()-1].node.y, t_pt.x, t_pt.y);
+        //     return euclidean_distance();
+        // }
         float euclidean_distance(float x0, float y0, float x1, float y1)
         {
             return (sqrtf(powf((x1 - x0), 2.) + powf((y1 - y0), 2.)));

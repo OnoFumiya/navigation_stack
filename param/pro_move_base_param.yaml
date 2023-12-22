@@ -31,6 +31,6 @@ speed_reso_ang : 0.088 # 約5°
 
 # other
 robot_radius : 0.35
-goal_position_range : 0.2
-local_position_range : 0.45
-linear_y_angle_range : 0.873 # 約50°
+goal_position_range : 0.6
+local_position_range : 0.2
+linear_y_angle_range : 0.698 # 約40°

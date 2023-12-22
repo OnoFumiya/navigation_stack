@@ -18,7 +18,8 @@ def callback_path(path):
 
 def main():
     global x_poses, y_poses
-    rospy.Subscriber('/move_base/GlobalPlanner/plan', Path, callback_path)
+    # rospy.Subscriber('/move_base/GlobalPlanner/plan', Path, callback_path)
+    rospy.Subscriber('/move_base/DWAPlannerROS/global_plan', Path, callback_path)
     r = rospy.Rate(10)
     while not rospy.is_shutdown():
         if ((x_poses != None) and (y_poses != None)):
