@@ -1,7 +1,8 @@
 <launch>
     <arg name="rviz_cfg" default="$(find navigation_stack)/config/rviz/rviz_leg_checker.rviz"/>
     <include file="$(find dr_spaam_ros)/launch/dr_spaam_ros.launch"/>
-    <node pkg="navigation_stack" type="leg_point_publisher" name="leg_point_publisher" output="screen"/>
-    <node pkg="navigation_stack" type="leg_plot" name="leg_plot" output="screen"/>
+    <!-- <node pkg="navigation_stack" type="leg_point_publisher" name="leg_point_publisher" output="screen"/> -->
+    <node pkg="navigation_stack" type="step_point_publisher" name="step_point_publisher" output="screen"/>
+    <node pkg="navigation_stack" type="point_plot" name="point_plot" output="screen"/>
     <node pkg="rviz" type="rviz" name="rviz" args="-d $(arg rviz_cfg)"/>
 </launch>

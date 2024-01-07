@@ -30,9 +30,6 @@ using namespace Eigen;
 
 class ALL_PARAMETER
 {
-    // private:
-    //     ros::NodeHandle nh;
-    //     XmlRpc::XmlRpcValue param;
     public:
         float lidar_pose[2] = {0.2, 0.0};
         int sampling_step = 5;
@@ -42,17 +39,20 @@ class ALL_PARAMETER
         float detect_range_time = 0.1;
         float velocity_weight_prediction = 2.0;
         float position_weight_prediction = 1.3333;
+        float similar_object = 0.2;
+        float no_moving_range = 0.6;
         std::string robot_base = "base_footprint";
         std::string map = "map";
         std::string removal_scan_topic = "/dr_spaam_navigation/scan";
-        std::string stepping_leg_point_topic = "/dr_spaam_navigation/leg_pointers_step";
+        std::string stepping_point_topic = "/dr_spaam_navigation/object_pointers_step";
         std::string dr_spaam_topic = "/dr_spaam_detections";
+        std::string merge_object_topic = "/object_point";
         std::string removal_scan_marker = "/dr_spaam_navigation/lidar_points";
-        std::string step1_leg_marker = "/dr_spaam_navigation/leg_point_step1";
-        std::string step2_leg_marker = "/dr_spaam_navigation/leg_point_step2";
-        std::string step3_leg_marker = "/dr_spaam_navigation/leg_point_step3";
-        std::string next_step_leg_marker = "/dr_spaam_navigation/leg_point_nextstep";
-        std::string walk_cost_topic = "/dr_spaam_navigation/leg_cost";
+        std::string step1_marker = "/dr_spaam_navigation/point_step1";
+        std::string step2_marker = "/dr_spaam_navigation/point_step2";
+        std::string step3_marker = "/dr_spaam_navigation/point_step3";
+        std::string next_step_marker = "/dr_spaam_navigation/point_nextstep";
+        std::string cost_topic = "/dr_spaam_navigation/point_cost";
         ALL_PARAMETER()
         {
             ros::NodeHandle nh;
@@ -72,6 +72,10 @@ class ALL_PARAMETER
             velocity_weight_prediction = static_cast<double>(param);
             nh.getParam("position_weight_prediction", param);
             position_weight_prediction = static_cast<double>(param);
+            nh.getParam("similar_object", param);
+            similar_object = static_cast<double>(param);
+            nh.getParam("no_moving_range", param);
+            no_moving_range = static_cast<double>(param);
             nh.getParam("detect_range_time", param);
             detect_range_time = static_cast<double>(param);
             nh.getParam("robot_base", param);
@@ -80,34 +84,36 @@ class ALL_PARAMETER
             map = static_cast<std::string>(param);
             nh.getParam("removal_scan_topic", param);
             removal_scan_topic = static_cast<std::string>(param);
-            nh.getParam("stepping_leg_point_topic", param);
-            stepping_leg_point_topic = static_cast<std::string>(param);
+            nh.getParam("stepping_point_topic", param);
+            stepping_point_topic = static_cast<std::string>(param);
             nh.getParam("dr_spaam_topic", param);
             dr_spaam_topic = static_cast<std::string>(param);
+            nh.getParam("merge_object_topic", param);
+            merge_object_topic = static_cast<std::string>(param);
             nh.getParam("removal_scan_marker", param);
             removal_scan_marker = static_cast<std::string>(param);
-            nh.getParam("step1_leg_marker", param);
-            step1_leg_marker = static_cast<std::string>(param);
-            nh.getParam("step2_leg_marker", param);
-            step2_leg_marker = static_cast<std::string>(param);
-            nh.getParam("step3_leg_marker", param);
-            step3_leg_marker = static_cast<std::string>(param);
-            nh.getParam("next_step_leg_marker", param);
-            next_step_leg_marker = static_cast<std::string>(param);
-            nh.getParam("walk_cost_topic", param);
-            walk_cost_topic = static_cast<std::string>(param);
+            nh.getParam("step1_marker", param);
+            step1_marker = static_cast<std::string>(param);
+            nh.getParam("step2_marker", param);
+            step2_marker = static_cast<std::string>(param);
+            nh.getParam("step3_marker", param);
+            step3_marker = static_cast<std::string>(param);
+            nh.getParam("next_step_marker", param);
+            next_step_marker = static_cast<std::string>(param);
+            nh.getParam("cost_topic", param);
+            cost_topic = static_cast<std::string>(param);
         }
 };
 
 
-class HUMAN_DETECT
+class OBJECT_DETECT
 {
     private:
         ros::NodeHandle nh;
         tf::TransformListener tf_listener;
-        ros::Publisher pub_walk_leg;
-        ros::Publisher pub_legremoval_scan;
-        ros::Subscriber leg_sub;
+        ros::Publisher pub_step_point;
+        ros::Publisher pub_pointremoval_scan;
+        ros::Subscriber object_sub;
         ALL_PARAMETER all_parameter;
         // float lidar_pose[2] = {0.2, 0.0};
         // int sampling_step = 5;
@@ -116,8 +122,8 @@ class HUMAN_DETECT
         // float human_noise = 0.4;
         // float detect_range_time = 0.1;
         bool start_flag;
-        std::vector<geometry_msgs::Point> leg_points;
-        std::vector<geometry_msgs::Point> leg_points_base;
+        std::vector<geometry_msgs::Point> object_points;
+        std::vector<geometry_msgs::Point> points_base;
         geometry_msgs::Point Pointtransform(const std::string& org_frame, const std::string& target_frame, const geometry_msgs::Point& point)
         {
             geometry_msgs::PointStamped ptstanp_transformed;
@@ -142,10 +148,10 @@ class HUMAN_DETECT
             }
             return pt_transformed;
         }
-        void callback_leg(const dr_spaam_ros::LegPoseArray &msg)
+        void callback_object(const dr_spaam_ros::LegPoseArray &msg)
         {
-            leg_points.clear();
-            leg_points_base.clear();
+            object_points.clear();
+            points_base.clear();
             geometry_msgs::Point point;
             for (int i=0; i<msg.poses.size(); i++)
             {
@@ -155,8 +161,8 @@ class HUMAN_DETECT
                 // if ((msg.scan.range_min <= sqrtf(powf(point.x, 2.) + powf(point.y, 2.))) && (sqrtf(powf(point.x, 2.) + powf(point.y, 2.)) <= msg.scan.range_max))
                 if ((0.25 <= sqrtf(powf(point.x, 2.) + powf(point.y, 2.))) && (sqrtf(powf(point.x, 2.) + powf(point.y, 2.)) <= msg.scan.range_max))
                 {
-                    leg_points_base.push_back(point);
-                    leg_points.push_back(Pointtransform(all_parameter.robot_base, all_parameter.map, point));
+                    points_base.push_back(point);
+                    object_points.push_back(Pointtransform(all_parameter.robot_base, all_parameter.map, point));
                 }
             }
 
@@ -178,9 +184,9 @@ class HUMAN_DETECT
             {
                 if ((msg.scan.range_min <= msg.scan.ranges[i]) && (msg.scan.ranges[i] <= msg.scan.range_max))
                 {
-                    for (int j=0; j<leg_points_base.size(); j++)
+                    for (int j=0; j<points_base.size(); j++)
                     {
-                        if (sqrtf(powf((msg.scan.ranges[i]*(cos(msg.scan.angle_min + range_angle_increment*i)) + all_parameter.lidar_pose[0]) - leg_points_base[j].x, 2.) + powf((msg.scan.ranges[i]*(sin(msg.scan.angle_min + range_angle_increment*i)) + all_parameter.lidar_pose[1]) - leg_points_base[j].y, 2.)) <= all_parameter.max_human_radius)
+                        if (sqrtf(powf((msg.scan.ranges[i]*(cos(msg.scan.angle_min + range_angle_increment*i)) + all_parameter.lidar_pose[0]) - points_base[j].x, 2.) + powf((msg.scan.ranges[i]*(sin(msg.scan.angle_min + range_angle_increment*i)) + all_parameter.lidar_pose[1]) - points_base[j].y, 2.)) <= all_parameter.max_human_radius)
                         {
                             removal_lidar_data.ranges[i] = NAN;
                             break;
@@ -188,15 +194,15 @@ class HUMAN_DETECT
                     }
                 }
             }
-            pub_legremoval_scan.publish(removal_lidar_data);
+            pub_pointremoval_scan.publish(removal_lidar_data);
             start_flag = true;
         }
     public:
-        HUMAN_DETECT()
+        OBJECT_DETECT()
         {
-            pub_walk_leg = nh.advertise<navigation_stack::WalkLegPoint>(all_parameter.stepping_leg_point_topic, 10);
-            pub_legremoval_scan = nh.advertise<sensor_msgs::LaserScan>(all_parameter.removal_scan_topic, 10);
-            leg_sub = nh.subscribe(all_parameter.dr_spaam_topic, 10, &HUMAN_DETECT::callback_leg, this);
+            pub_step_point = nh.advertise<navigation_stack::WalkLegPoint>(all_parameter.stepping_point_topic, 10);
+            pub_pointremoval_scan = nh.advertise<sensor_msgs::LaserScan>(all_parameter.removal_scan_topic, 10);
+            object_sub = nh.subscribe(all_parameter.merge_object_topic, 10, &OBJECT_DETECT::callback_object, this);
             start_flag = false;
             while (ros::ok())
             {
@@ -210,108 +216,108 @@ class HUMAN_DETECT
         }
         void publisher()
         {
-            navigation_stack::WalkLegPoint leg_points_steps;
-            leg_points_steps.point1.resize(leg_points.size());
-            leg_points_steps.point2.resize(leg_points.size());
-            leg_points_steps.point3.resize(leg_points.size());
-            copy(leg_points.begin(), leg_points.end(), leg_points_steps.point1.begin());
-            copy(leg_points.begin(), leg_points.end(), leg_points_steps.point2.begin());
-            copy(leg_points.begin(), leg_points.end(), leg_points_steps.point3.begin());
-            leg_points_steps.point_next.clear();
+            navigation_stack::WalkLegPoint points_steps;
+            points_steps.point1.resize(object_points.size());
+            points_steps.point2.resize(object_points.size());
+            points_steps.point3.resize(object_points.size());
+            copy(object_points.begin(), object_points.end(), points_steps.point1.begin());
+            copy(object_points.begin(), object_points.end(), points_steps.point2.begin());
+            copy(object_points.begin(), object_points.end(), points_steps.point3.begin());
+            points_steps.point_next.clear();
             while (ros::ok())
             {
-                leg_points_steps.point1.clear();
-                leg_points_steps.point1.resize(leg_points_steps.point2.size());
-                copy(leg_points_steps.point2.begin(), leg_points_steps.point2.end(), leg_points_steps.point1.begin());
-                leg_points_steps.point2.clear();
-                leg_points_steps.point2.resize(leg_points_steps.point3.size());
-                copy(leg_points_steps.point3.begin(), leg_points_steps.point3.end(), leg_points_steps.point2.begin());
+                points_steps.point1.clear();
+                points_steps.point1.resize(points_steps.point2.size());
+                copy(points_steps.point2.begin(), points_steps.point2.end(), points_steps.point1.begin());
+                points_steps.point2.clear();
+                points_steps.point2.resize(points_steps.point3.size());
+                copy(points_steps.point3.begin(), points_steps.point3.end(), points_steps.point2.begin());
 
-                std::vector<std::vector<geometry_msgs::Point>> leg_points_samplings;   // 第一要素が足の数、第二要素が足のそれぞれのステップ
-                std::vector<geometry_msgs::Point> leg_points_temp;
-                leg_points_samplings.clear();
-                leg_points_samplings.resize(leg_points.size());
-                leg_points_temp.resize(leg_points.size());
-                copy(leg_points.begin(), leg_points.end(), leg_points_temp.begin());
-                for (int i=0; i<leg_points_temp.size(); i++)
+                std::vector<std::vector<geometry_msgs::Point>> object_points_samplings;   // 第一要素が物体の数、第二要素が物体のそれぞれのステップ
+                std::vector<geometry_msgs::Point> object_points_temp;
+                object_points_samplings.clear();
+                object_points_samplings.resize(object_points.size());
+                object_points_temp.resize(object_points.size());
+                copy(object_points.begin(), object_points.end(), object_points_temp.begin());
+                for (int i=0; i<object_points_temp.size(); i++)
                 {
-                    leg_points_samplings[i].push_back(leg_points_temp[i]);
+                    object_points_samplings[i].push_back(object_points_temp[i]);
                 }
                 for (int i=1; i<all_parameter.sampling_step; i++)
                 {
                     ros::Duration(all_parameter.detect_range_time).sleep();
-                    leg_points_temp.resize(leg_points.size());
-                    copy(leg_points.begin(), leg_points.end(), leg_points_temp.begin());
-                    for (int j=0; j<leg_points_temp.size(); j++)
+                    object_points_temp.resize(object_points.size());
+                    copy(object_points.begin(), object_points.end(), object_points_temp.begin());
+                    for (int j=0; j<object_points_temp.size(); j++)
                     {
                         bool input_flag = false;
-                        for (int k=0; k<leg_points_samplings.size(); k++)
+                        for (int k=0; k<object_points_samplings.size(); k++)
                         {
-                            if (sqrtf(powf(leg_points_temp[j].x - leg_points_samplings[k][leg_points_samplings[k].size()-1].x, 2.) + powf(leg_points_temp[j].y - leg_points_samplings[k][leg_points_samplings[k].size()-1].y, 2.)) <= all_parameter.human_noise)
+                            if (sqrtf(powf(object_points_temp[j].x - object_points_samplings[k][object_points_samplings[k].size()-1].x, 2.) + powf(object_points_temp[j].y - object_points_samplings[k][object_points_samplings[k].size()-1].y, 2.)) <= all_parameter.human_noise)
                             {
-                                leg_points_samplings[k].push_back(leg_points_temp[j]);
+                                object_points_samplings[k].push_back(object_points_temp[j]);
                                 input_flag = true;
                             }
                         }
                         if (input_flag != true)
                         {
-                            std::vector<geometry_msgs::Point> new_input_leg;
-                            new_input_leg.clear();
-                            new_input_leg.push_back(leg_points_temp[j]);
-                            leg_points_samplings.push_back(new_input_leg);
+                            std::vector<geometry_msgs::Point> new_input_object;
+                            new_input_object.clear();
+                            new_input_object.push_back(object_points_temp[j]);
+                            object_points_samplings.push_back(new_input_object);
                         }
                     }
                 }
 
-                geometry_msgs::Point leg_point_temp;
+                geometry_msgs::Point ob_point_temp;
                 geometry_msgs::Point pt_nan;
                 pt_nan.x = NAN;
                 pt_nan.y = NAN;
                 pt_nan.z = 0.0;
-                leg_points_steps.point3.clear();
-                leg_points_steps.point3.resize(leg_points_steps.point2.size(), pt_nan);
-                for (int i=0; i<leg_points_samplings.size(); i++)
+                points_steps.point3.clear();
+                points_steps.point3.resize(points_steps.point2.size(), pt_nan);
+                for (int i=0; i<object_points_samplings.size(); i++)
                 {
                     float x = 0.0;
                     float y = 0.0;
-                    for (int j=0; j<leg_points_samplings[i].size(); j++)
+                    for (int j=0; j<object_points_samplings[i].size(); j++)
                     {
-                        x += leg_points_samplings[i][j].x;
-                        y += leg_points_samplings[i][j].y;
+                        x += object_points_samplings[i][j].x;
+                        y += object_points_samplings[i][j].y;
                     }
-                    leg_point_temp.x = x/leg_points_samplings[i].size();
-                    leg_point_temp.y = y/leg_points_samplings[i].size();
-                    leg_point_temp.z = 0.2;
+                    ob_point_temp.x = x/object_points_samplings[i].size();
+                    ob_point_temp.y = y/object_points_samplings[i].size();
+                    ob_point_temp.z = 0.2;
                     bool input_flag = false;
-                    for (int j=0; j<leg_points_steps.point2.size(); j++)
+                    for (int j=0; j<points_steps.point2.size(); j++)
                     {
-                        if (sqrtf(powf(leg_point_temp.x - leg_points_steps.point2[j].x, 2.) + powf(leg_point_temp.y - leg_points_steps.point2[j].y, 2.)) <= all_parameter.max_human_vel*all_parameter.detect_range_time*all_parameter.sampling_step)
+                        if (sqrtf(powf(ob_point_temp.x - points_steps.point2[j].x, 2.) + powf(ob_point_temp.y - points_steps.point2[j].y, 2.)) <= all_parameter.max_human_vel*all_parameter.detect_range_time*all_parameter.sampling_step)
                         {
-                            leg_points_steps.point3[j].x = leg_point_temp.x;
-                            leg_points_steps.point3[j].y = leg_point_temp.y;
-                            leg_points_steps.point3[j].z = leg_point_temp.z;
+                            points_steps.point3[j].x = ob_point_temp.x;
+                            points_steps.point3[j].y = ob_point_temp.y;
+                            points_steps.point3[j].z = ob_point_temp.z;
                             input_flag = true;
                             break;
                         }
                     }
                     if (input_flag != true)
                     {
-                        leg_points_steps.point3.push_back(leg_point_temp);
+                        points_steps.point3.push_back(ob_point_temp);
                     }
                 }
 
-                for (int i=0; i<leg_points_steps.point3.size(); i++)
+                for (int i=0; i<points_steps.point3.size(); i++)
                 {
-                    if ((std::isnan(leg_points_steps.point3[i].x)) || (std::isnan(leg_points_steps.point3[i].y)))
+                    if ((std::isnan(points_steps.point3[i].x)) || (std::isnan(points_steps.point3[i].y)))
                     {
-                        leg_points_steps.point3.erase(leg_points_steps.point3.begin() + i);
-                        if ((0 <= i) && (i < leg_points_steps.point1.size()))
+                        points_steps.point3.erase(points_steps.point3.begin() + i);
+                        if ((0 <= i) && (i < points_steps.point1.size()))
                         {
-                            leg_points_steps.point1.erase(leg_points_steps.point1.begin() + i);
+                            points_steps.point1.erase(points_steps.point1.begin() + i);
                         }
-                        if ((0 <= i) && (i < leg_points_steps.point2.size()))
+                        if ((0 <= i) && (i < points_steps.point2.size()))
                         {
-                            leg_points_steps.point2.erase(leg_points_steps.point2.begin() + i);
+                            points_steps.point2.erase(points_steps.point2.begin() + i);
                         }
                     }
                 }
@@ -327,16 +333,16 @@ class HUMAN_DETECT
                 // c_base_y = NAN;
                 int mode = 0;   // mode : 0(1_arrow), 1(x), 2(y)
                 float a, b, c;
-                leg_points_steps.point_next.clear();
-                for (int i=0; i<leg_points_steps.point3.size(); i++)
+                points_steps.point_next.clear();
+                for (int i=0; i<points_steps.point3.size(); i++)
                 {
-                    if ((i < leg_points_steps.point1.size()) && (i < leg_points_steps.point2.size()))
+                    if ((i < points_steps.point1.size()) && (i < points_steps.point2.size()))
                     {
-                        if ((std::isnan(leg_points_steps.point1[i].x) != true) && (std::isnan(leg_points_steps.point1[i].y) != true) && (std::isnan(leg_points_steps.point2[i].x) != true) && (std::isnan(leg_points_steps.point2[i].y) != true) && (std::isnan(leg_points_steps.point3[i].x) != true) && (std::isnan(leg_points_steps.point3[i].y) != true))
+                        if ((std::isnan(points_steps.point1[i].x) != true) && (std::isnan(points_steps.point1[i].y) != true) && (std::isnan(points_steps.point2[i].x) != true) && (std::isnan(points_steps.point2[i].y) != true) && (std::isnan(points_steps.point3[i].x) != true) && (std::isnan(points_steps.point3[i].y) != true))
                         {
-                            p1 = Pointtransform(all_parameter.map, all_parameter.robot_base, leg_points_steps.point1[i]);
-                            p2 = Pointtransform(all_parameter.map, all_parameter.robot_base, leg_points_steps.point2[i]);
-                            p3 = Pointtransform(all_parameter.map, all_parameter.robot_base, leg_points_steps.point3[i]);
+                            p1 = Pointtransform(all_parameter.map, all_parameter.robot_base, points_steps.point1[i]);
+                            p2 = Pointtransform(all_parameter.map, all_parameter.robot_base, points_steps.point2[i]);
+                            p3 = Pointtransform(all_parameter.map, all_parameter.robot_base, points_steps.point3[i]);
                             MatrixXd A(3, 2);
                             VectorXd B(3);
                             A(0, 0) = p1.x;
@@ -419,17 +425,17 @@ class HUMAN_DETECT
                             //         angle -= M_PI*(angle/std::fabs(angle));
                             //     }
                             //     float dist = (sqrtf(powf(p3.x - p2.x, 2.) + powf(p3.y - p2.y, 2.)) + sqrtf(powf(p2.x - p1.x, 2.) + powf(p2.y - p1.y, 2.))) / 0.5;
-                            //     leg_point_temp.x = p3.x + dist * cos(angle);
-                            //     leg_point_temp.y = p3.y + dist * sin(angle);
-                            //     leg_point_temp.z = 0.4;
-                            //     if (leg_point_temp.x < 1.5)
+                            //     ob_point_temp.x = p3.x + dist * cos(angle);
+                            //     ob_point_temp.y = p3.y + dist * sin(angle);
+                            //     ob_point_temp.z = 0.4;
+                            //     if (ob_point_temp.x < 1.5)
                             //     {
-                            //         if (leg_point_temp.x < all_parameter.lidar_pose[0])
+                            //         if (ob_point_temp.x < all_parameter.lidar_pose[0])
                             //         {
-                            //             leg_point_temp.x = all_parameter.lidar_pose[0];
-                            //             leg_point_temp.y = result[0] * leg_point_temp.x + result[1];
+                            //             ob_point_temp.x = all_parameter.lidar_pose[0];
+                            //             ob_point_temp.y = result[0] * ob_point_temp.x + result[1];
                             //         }
-                            //         leg_points_steps.point_next.push_back(leg_point_temp);
+                            //         points_steps.point_next.push_back(ob_point_temp);
                             //     }
                             // }
                             if (true)
@@ -440,23 +446,23 @@ class HUMAN_DETECT
                                     angle -= M_PI*(angle/std::fabs(angle));
                                 }
                                 float dist = sqrtf(powf(p3.x - p2.x, 2.) + powf(p3.y - p2.y, 2.)) + sqrtf(powf(p2.x - p1.x, 2.) + powf(p2.y - p1.y, 2.)) * all_parameter.velocity_weight_prediction;
-                                leg_point_temp.x = p3.x + dist * cos(angle);
-                                leg_point_temp.y = p3.y + dist * sin(angle);
-                                leg_point_temp.z = 0.4;
-                                if (leg_point_temp.x < (3.0 + 0.12))
+                                ob_point_temp.x = p3.x + dist * cos(angle);
+                                ob_point_temp.y = p3.y + dist * sin(angle);
+                                ob_point_temp.z = 0.4;
+                                if (ob_point_temp.x < (3.0 + 0.12))
                                 {
-                                    if (leg_point_temp.x < (all_parameter.lidar_pose[0] + 0.12))
+                                    if (ob_point_temp.x < (all_parameter.lidar_pose[0] + 0.12))
                                     {
-                                        leg_point_temp.x = all_parameter.lidar_pose[0] + 0.12;
-                                        leg_point_temp.y = result[0] * leg_point_temp.x + result[1];
+                                        ob_point_temp.x = all_parameter.lidar_pose[0] + 0.12;
+                                        ob_point_temp.y = result[0] * ob_point_temp.x + result[1];
                                     }
                                     if (std::fabs(angle) <= 3*M_PI/4.)
                                     {
                                         dist = (sqrtf(powf(p3.x - p2.x, 2.) + powf(p3.y - p2.y, 2.)) + sqrtf(powf(p2.x - p1.x, 2.) + powf(p2.y - p1.y, 2.)) * all_parameter.velocity_weight_prediction) * (sqrtf(powf(p3.x, 2.) + powf(p3.y, 2.)) * all_parameter.position_weight_prediction);
-                                        leg_point_temp.x = p3.x + dist * cos(angle);
-                                        leg_point_temp.y = p3.y + dist * sin(angle);
+                                        ob_point_temp.x = p3.x + dist * cos(angle);
+                                        ob_point_temp.y = p3.y + dist * sin(angle);
                                     }
-                                    leg_points_steps.point_next.push_back(leg_point_temp);
+                                    points_steps.point_next.push_back(ob_point_temp);
                                 }
                             }
                             else if (mode == 1)
@@ -464,26 +470,26 @@ class HUMAN_DETECT
                                 a = ((p1.y - p2.y) / ((p1.x - p2.x) * (p2.x - p3.x))) - ((p1.y - p3.y) / ((p1.x - p3.x) * (p2.x - p3.x)));
                                 b = (p1.y - p2.y) / (p1.x - p2.x) - a * (p1.x + p2.x);
                                 c = p1.y - a * powf(p1.x, 2.) - b * p1.x;
-                                leg_point_temp.x = all_parameter.lidar_pose[0];
-                                leg_point_temp.y = a * powf(leg_point_temp.x, 2.) + b * leg_point_temp.x + c;
-                                leg_point_temp.z = 0.4;
-                                leg_points_steps.point_next.push_back(leg_point_temp);
+                                ob_point_temp.x = all_parameter.lidar_pose[0];
+                                ob_point_temp.y = a * powf(ob_point_temp.x, 2.) + b * ob_point_temp.x + c;
+                                ob_point_temp.z = 0.4;
+                                points_steps.point_next.push_back(ob_point_temp);
                             }
                             else if (mode == 2)
                             {
                                 a = ((p1.x - p2.x) / ((p1.y - p2.y) * (p2.y - p3.y))) - ((p1.x - p3.x) / ((p1.y - p3.y) * (p2.y - p3.y)));
                                 b = (p1.x - p2.x) / (p1.y - p2.y) - a * (p1.y + p2.y);
                                 c = p1.x - a * powf(p1.y, 2.) - b * p1.y;
-                                leg_point_temp.y = all_parameter.lidar_pose[1];
-                                leg_point_temp.x = a * powf(leg_point_temp.y, 2.) + b * leg_point_temp.y + c;
-                                leg_point_temp.z = 0.4;
-                                leg_points_steps.point_next.push_back(leg_point_temp);
+                                ob_point_temp.y = all_parameter.lidar_pose[1];
+                                ob_point_temp.x = a * powf(ob_point_temp.y, 2.) + b * ob_point_temp.y + c;
+                                ob_point_temp.z = 0.4;
+                                points_steps.point_next.push_back(ob_point_temp);
                             }
-                            // leg_points_steps.point_next.push_back(leg_point_temp);
+                            // points_steps.point_next.push_back(ob_point_temp);
                         }
                     }
                 }
-                pub_walk_leg.publish(leg_points_steps);
+                pub_step_point.publish(points_steps);
                 ros::spinOnce();
             }
         }
@@ -492,8 +498,8 @@ class HUMAN_DETECT
 
 int main(int argc, char **argv)
 {
-    ros::init(argc, argv, "leg_point_publisher");
-    HUMAN_DETECT human_detect;
+    ros::init(argc, argv, "step_point_publisher");
+    OBJECT_DETECT object_detect;
     ros::spin();
     return 0;
 }

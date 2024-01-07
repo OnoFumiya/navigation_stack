@@ -6,8 +6,9 @@
     <include file="$(find sobit_navigation)/launch/sobit_pro/sobit_pro_navigation_add_dr_spaam.launch">
         <arg name="ydwa" value="$(arg ydwa)"/>
     </include>
-    <node pkg="navigation_stack" type="leg_point_publisher" name="leg_point_publisher" output="screen"/>
-    <node pkg="navigation_stack" type="leg_plot" name="leg_plot" output="screen"/>
+    <node pkg="navigation_stack" type="step_point_publisher" name="step_point_publisher" output="screen"/>
+    <node pkg="navigation_stack" type="point_plot" name="point_plot" output="screen"/>
+    <node pkg="navigation_stack" type="object_point_publisher" name="object_point_publisher" output="screen"/>
     <rosparam command="load" file="$(find navigation_stack)/param/prediction_leg_parameter.yaml"/>
     <rosparam command="load" file="$(find navigation_stack)/param/pro_move_base_param.yaml"/>
 

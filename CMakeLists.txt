@@ -149,41 +149,41 @@ include_directories(
 ## The recommended prefix ensures that target names across packages don't collide
 
 ###
-add_executable(navigation_global_path src/navigation_global_path.cpp)
-target_link_libraries(navigation_global_path
-  ${catkin_LIBRARIES}
-  ${PYTHON_LIBRARIES}
-)
+# add_executable(navigation_global_path src/navigation_global_path.cpp)
+# target_link_libraries(navigation_global_path
+#   ${catkin_LIBRARIES}
+#   ${PYTHON_LIBRARIES}
+# )
 
-add_executable(navigation_local_path src/navigation_local_path.cpp)
-target_link_libraries(navigation_local_path
-  ${catkin_LIBRARIES}
-  ${PYTHON_LIBRARIES}
-)
+# add_executable(navigation_local_path src/navigation_local_path.cpp)
+# target_link_libraries(navigation_local_path
+#   ${catkin_LIBRARIES}
+#   ${PYTHON_LIBRARIES}
+# )
 
-add_executable(slam src/slam.cpp)
-target_link_libraries(slam
-  ${catkin_LIBRARIES}
-  yaml-cpp
-)
+# add_executable(slam src/slam.cpp)
+# target_link_libraries(slam
+#   ${catkin_LIBRARIES}
+#   yaml-cpp
+# )
 
-add_executable(expansion_pointer src/expansion_pointer.cpp)
-target_link_libraries(expansion_pointer
-  ${catkin_LIBRARIES}
-  ${PYTHON_LIBRARIES}
-)
+# add_executable(expansion_pointer src/expansion_pointer.cpp)
+# target_link_libraries(expansion_pointer
+#   ${catkin_LIBRARIES}
+#   ${PYTHON_LIBRARIES}
+# )
 
-add_executable(plot src/plot.cpp)
-target_link_libraries(plot
-  ${catkin_LIBRARIES}
-  ${PYTHON_LIBRARIES}
-)
+# add_executable(plot src/plot.cpp)
+# target_link_libraries(plot
+#   ${catkin_LIBRARIES}
+#   ${PYTHON_LIBRARIES}
+# )
 
-add_executable(map_saver src/map_saver.cpp)
-target_link_libraries(map_saver
-  ${catkin_LIBRARIES}
-  yaml-cpp
-)
+# add_executable(map_saver src/map_saver.cpp)
+# target_link_libraries(map_saver
+#   ${catkin_LIBRARIES}
+#   yaml-cpp
+# )
 
 add_executable(cpp_lecture src/cpp_lecture.cpp)
 target_link_libraries(cpp_lecture
@@ -198,13 +198,18 @@ target_link_libraries(pro_move_base
   ${PYTHON_LIBRARIES}
 )
 
-add_executable(leg_plot src/leg_plot.cpp)
-target_link_libraries(leg_plot
+add_executable(point_plot src/point_plot.cpp)
+target_link_libraries(point_plot
   ${catkin_LIBRARIES}
 )
 
-add_executable(leg_point_publisher src/leg_point_publisher.cpp)
-target_link_libraries(leg_point_publisher
+add_executable(step_point_publisher src/step_point_publisher.cpp)
+target_link_libraries(step_point_publisher
+  ${catkin_LIBRARIES}
+)
+
+add_executable(object_point_publisher src/object_point_publisher.cpp)
+target_link_libraries(object_point_publisher
   ${catkin_LIBRARIES}
 )
 ###
