@@ -196,8 +196,16 @@ class MERGE_POINT
                 // std::vector<geometry_msgs::Pose> stack_point;
                 for (int i=leg_point.poses.size()-1; i<=0; i++)
                 {
+                    if (i<0)
+                    {
+                        break;
+                    }
                     for (int j=merge_data.poses.size()-1-i; 0<=j; j--)
                     {
+                        if (j<0)
+                        {
+                            break;
+                        }
                         if (sqrtf(powf(leg_point.poses[i].position.x - merge_data.poses[j].position.x, 2) + powf(leg_point.poses[i].position.y - merge_data.poses[j].position.y, 2)) <= all_parameter.human_noise)
                         {
                             merge_data.poses.erase(merge_data.poses.begin() + j);
@@ -205,10 +213,23 @@ class MERGE_POINT
                     }
                     merge_data.poses.push_back(leg_point.poses[i]);
                 }
+                // printf("\n");
                 // for (int i=0; i<leg_point.poses.size(); i++)
                 // {
                 //     merge_data.poses.push_back(leg_point.poses[i]);
                 // }
+                if (merge_data.poses.size()==0)
+                {
+                    geometry_msgs::Pose no_pose;
+                    no_pose.position.x = 100.0;
+                    no_pose.position.y = 100.0;
+                    no_pose.position.z = 0.;
+                    no_pose.orientation.w = 1.;
+                    no_pose.orientation.w = 0.;
+                    no_pose.orientation.w = 0.;
+                    no_pose.orientation.w = 0.;
+                    merge_data.poses.push_back(no_pose);
+                }
                 pub_merge_object.publish(merge_data);
                 ros::spinOnce();
                 loop_rate.sleep();

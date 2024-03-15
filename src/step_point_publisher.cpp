@@ -34,6 +34,7 @@ class ALL_PARAMETER
         float lidar_pose[2] = {0.2, 0.0};
         int sampling_step = 5;
         float max_human_vel = 1.5;
+        float min_human_vel = 0.1;
         float max_human_radius = 0.80;
         float human_noise = 0.4;
         float detect_range_time = 0.1;
@@ -64,6 +65,8 @@ class ALL_PARAMETER
             sampling_step = static_cast<int>(param);
             nh.getParam("max_human_vel", param);
             max_human_vel = static_cast<double>(param);
+            nh.getParam("min_human_vel", param);
+            min_human_vel = static_cast<double>(param);
             nh.getParam("max_human_radius", param);
             max_human_radius = static_cast<double>(param);
             nh.getParam("human_noise", param);
@@ -114,6 +117,7 @@ class OBJECT_DETECT
         ros::Publisher pub_step_point;
         ros::Publisher pub_pointremoval_scan;
         ros::Subscriber object_sub;
+        ros::Subscriber robotvel_sub;
         ALL_PARAMETER all_parameter;
         // float lidar_pose[2] = {0.2, 0.0};
         // int sampling_step = 5;
@@ -124,6 +128,7 @@ class OBJECT_DETECT
         bool start_flag;
         std::vector<geometry_msgs::Point> object_points;
         std::vector<geometry_msgs::Point> points_base;
+        geometry_msgs::Twist robot_vel;
         geometry_msgs::Point Pointtransform(const std::string& org_frame, const std::string& target_frame, const geometry_msgs::Point& point)
         {
             geometry_msgs::PointStamped ptstanp_transformed;
@@ -197,12 +202,28 @@ class OBJECT_DETECT
             pub_pointremoval_scan.publish(removal_lidar_data);
             start_flag = true;
         }
+        void callback_robotvel(const geometry_msgs::Twist &msg)
+        {
+            robot_vel.linear.x = msg.linear.x;
+            robot_vel.linear.y = msg.linear.y;
+            robot_vel.linear.z = msg.linear.z;
+            robot_vel.angular.x = msg.angular.x;
+            robot_vel.angular.y = msg.angular.y;
+            robot_vel.angular.z = msg.angular.z;
+        }
     public:
         OBJECT_DETECT()
         {
             pub_step_point = nh.advertise<navigation_stack::WalkLegPoint>(all_parameter.stepping_point_topic, 10);
             pub_pointremoval_scan = nh.advertise<sensor_msgs::LaserScan>(all_parameter.removal_scan_topic, 10);
             object_sub = nh.subscribe(all_parameter.merge_object_topic, 10, &OBJECT_DETECT::callback_object, this);
+            robotvel_sub = nh.subscribe("mobile_base/commands/velocity", 10, &OBJECT_DETECT::callback_robotvel, this);
+            robot_vel.linear.x = 0.;
+            robot_vel.linear.y = 0.;
+            robot_vel.linear.z = 0.;
+            robot_vel.angular.x = 0.;
+            robot_vel.angular.y = 0.;
+            robot_vel.angular.z = 0.;
             start_flag = false;
             while (ros::ok())
             {
@@ -416,75 +437,88 @@ class OBJECT_DETECT
                             {
                                 mode = 0;
                             }
-
+                            if ((all_parameter.min_human_vel <= sqrtf(powf((p3.x - p1.x)/2, 2) + powf((p3.y - p1.y)/2, 2))/all_parameter.detect_range_time) && (sqrtf(powf((p3.x - p1.x)/2, 2) + powf((p3.y - p1.y)/2, 2))/all_parameter.detect_range_time <= all_parameter.max_human_vel))
                             // if (true)
-                            // {
-                            //     float angle = atan(result[0]);
-                            //     if ((std::fabs(angle - atan2(p3.y - p2.y , p3.x - p2.x) - 2*M_PI) >= (M_PI/2.)) && (std::fabs(angle - atan2(p3.y - p2.y , p3.x - p2.x)) >= (M_PI/2.)) && (std::fabs(angle - atan2(p3.y - p2.y , p3.x -p2.x) + 2*M_PI) >= (M_PI/2.)))
-                            //     {
-                            //         angle -= M_PI*(angle/std::fabs(angle));
-                            //     }
-                            //     float dist = (sqrtf(powf(p3.x - p2.x, 2.) + powf(p3.y - p2.y, 2.)) + sqrtf(powf(p2.x - p1.x, 2.) + powf(p2.y - p1.y, 2.))) / 0.5;
-                            //     ob_point_temp.x = p3.x + dist * cos(angle);
-                            //     ob_point_temp.y = p3.y + dist * sin(angle);
-                            //     ob_point_temp.z = 0.4;
-                            //     if (ob_point_temp.x < 1.5)
-                            //     {
-                            //         if (ob_point_temp.x < all_parameter.lidar_pose[0])
-                            //         {
-                            //             ob_point_temp.x = all_parameter.lidar_pose[0];
-                            //             ob_point_temp.y = result[0] * ob_point_temp.x + result[1];
-                            //         }
-                            //         points_steps.point_next.push_back(ob_point_temp);
-                            //     }
-                            // }
-                            if (true)
                             {
                                 float angle = atan(result[0]);
                                 if ((std::fabs(angle - atan2(p3.y - p2.y , p3.x - p2.x) - 2*M_PI) >= (M_PI/2.)) && (std::fabs(angle - atan2(p3.y - p2.y , p3.x - p2.x)) >= (M_PI/2.)) && (std::fabs(angle - atan2(p3.y - p2.y , p3.x - p2.x) + 2*M_PI) >= (M_PI/2.)))
                                 {
                                     angle -= M_PI*(angle/std::fabs(angle));
                                 }
-                                float dist = sqrtf(powf(p3.x - p2.x, 2.) + powf(p3.y - p2.y, 2.)) + sqrtf(powf(p2.x - p1.x, 2.) + powf(p2.y - p1.y, 2.)) * all_parameter.velocity_weight_prediction;
-                                ob_point_temp.x = p3.x + dist * cos(angle);
-                                ob_point_temp.y = p3.y + dist * sin(angle);
-                                ob_point_temp.z = 0.4;
-                                if (ob_point_temp.x < (3.0 + 0.12))
+                                if ((std::fabs(angle) <= M_PI/4) || (3*M_PI/4 <= std::fabs(angle)))
                                 {
-                                    if (ob_point_temp.x < (all_parameter.lidar_pose[0] + 0.12))
+                                    // ROS_INFO("dx = %.2f",std::fabs(p3.x) * (((p3.x - p2.x) + (p2.x - p1.x)) / (2*all_parameter.detect_range_time)) / ((((p3.x - p2.x) + (p2.x - p1.x)) / (2*all_parameter.detect_range_time)) - robot_vel.linear.x));
+                                    ob_point_temp.x = p3.x - 1.3 * std::fabs(p3.x) * (((p3.x - p2.x) + (p2.x - p1.x)) / (2*all_parameter.detect_range_time)) / ((((p3.x - p2.x) + (p2.x - p1.x)) / (2*all_parameter.detect_range_time)) - sqrtf(pow(robot_vel.linear.x, 2.) + pow(robot_vel.linear.y, 2.)));
+                                    ob_point_temp.y = result[0] * ob_point_temp.x + result[1];
+                                    if (ob_point_temp.x <= all_parameter.lidar_pose[0] + 0.1)
                                     {
-                                        ob_point_temp.x = all_parameter.lidar_pose[0] + 0.12;
+                                        ob_point_temp.x = all_parameter.lidar_pose[0] + 0.1;
                                         ob_point_temp.y = result[0] * ob_point_temp.x + result[1];
                                     }
-                                    if (std::fabs(angle) <= 3*M_PI/4.)
-                                    {
-                                        dist = (sqrtf(powf(p3.x - p2.x, 2.) + powf(p3.y - p2.y, 2.)) + sqrtf(powf(p2.x - p1.x, 2.) + powf(p2.y - p1.y, 2.)) * all_parameter.velocity_weight_prediction) * (sqrtf(powf(p3.x, 2.) + powf(p3.y, 2.)) * all_parameter.position_weight_prediction);
-                                        ob_point_temp.x = p3.x + dist * cos(angle);
-                                        ob_point_temp.y = p3.y + dist * sin(angle);
-                                    }
-                                    points_steps.point_next.push_back(ob_point_temp);
                                 }
-                            }
-                            else if (mode == 1)
-                            {
-                                a = ((p1.y - p2.y) / ((p1.x - p2.x) * (p2.x - p3.x))) - ((p1.y - p3.y) / ((p1.x - p3.x) * (p2.x - p3.x)));
-                                b = (p1.y - p2.y) / (p1.x - p2.x) - a * (p1.x + p2.x);
-                                c = p1.y - a * powf(p1.x, 2.) - b * p1.x;
-                                ob_point_temp.x = all_parameter.lidar_pose[0];
-                                ob_point_temp.y = a * powf(ob_point_temp.x, 2.) + b * ob_point_temp.x + c;
-                                ob_point_temp.z = 0.4;
+                                else
+                                {
+                                    // ROS_INFO("dy = %.2f",std::fabs(p3.y) * (((p3.y - p2.y) + (p2.y - p1.y)) / (2*all_parameter.detect_range_time)) / ((((p3.y - p2.y) + (p2.y - p1.y)) / (2*all_parameter.detect_range_time)) - robot_vel.linear.y));
+                                    ob_point_temp.y = p3.y - std::fabs(p3.y) * (((p3.y - p2.y) + (p2.y - p1.y)) / (2*all_parameter.detect_range_time)) / ((((p3.y - p2.y) + (p2.y - p1.y)) / (2*all_parameter.detect_range_time)) - sqrtf(pow(robot_vel.linear.x, 2.) + pow(robot_vel.linear.y, 2.)));
+                                    ob_point_temp.x = (ob_point_temp.y - result[1]) / result[0];
+                                    // ob_point_temp.x = p3.x - std::fabs(p3.x) * (((p3.x - p2.x) + (p2.x - p1.x)) / (2*all_parameter.detect_range_time)) / ((((p3.x - p2.x) + (p2.x - p1.x)) / (2*all_parameter.detect_range_time)) - robot_vel.linear.x);
+                                    // ob_point_temp.y = result[0] * ob_point_temp.x + result[1];
+                                }
                                 points_steps.point_next.push_back(ob_point_temp);
                             }
-                            else if (mode == 2)
+                            else
                             {
-                                a = ((p1.x - p2.x) / ((p1.y - p2.y) * (p2.y - p3.y))) - ((p1.x - p3.x) / ((p1.y - p3.y) * (p2.y - p3.y)));
-                                b = (p1.x - p2.x) / (p1.y - p2.y) - a * (p1.y + p2.y);
-                                c = p1.x - a * powf(p1.y, 2.) - b * p1.y;
-                                ob_point_temp.y = all_parameter.lidar_pose[1];
-                                ob_point_temp.x = a * powf(ob_point_temp.y, 2.) + b * ob_point_temp.y + c;
-                                ob_point_temp.z = 0.4;
+                                ob_point_temp.x = p3.x;
+                                ob_point_temp.y = p3.y;
                                 points_steps.point_next.push_back(ob_point_temp);
                             }
+                            // if (true)
+                            // {
+                            //     float angle = atan(result[0]);
+                            //     if ((std::fabs(angle - atan2(p3.y - p2.y , p3.x - p2.x) - 2*M_PI) >= (M_PI/2.)) && (std::fabs(angle - atan2(p3.y - p2.y , p3.x - p2.x)) >= (M_PI/2.)) && (std::fabs(angle - atan2(p3.y - p2.y , p3.x - p2.x) + 2*M_PI) >= (M_PI/2.)))
+                            //     {
+                            //         angle -= M_PI*(angle/std::fabs(angle));
+                            //     }
+                            //     float dist = sqrtf(powf(p3.x - p2.x, 2.) + powf(p3.y - p2.y, 2.)) + sqrtf(powf(p2.x - p1.x, 2.) + powf(p2.y - p1.y, 2.)) * all_parameter.velocity_weight_prediction;
+                            //     ob_point_temp.x = p3.x + dist * cos(angle);
+                            //     ob_point_temp.y = p3.y + dist * sin(angle);
+                            //     ob_point_temp.z = 0.4;
+                            //     if (ob_point_temp.x < (3.0 + 0.12))
+                            //     {
+                            //         if (ob_point_temp.x < (all_parameter.lidar_pose[0] + 0.12))
+                            //         {
+                            //             ob_point_temp.x = all_parameter.lidar_pose[0] + 0.12;
+                            //             ob_point_temp.y = result[0] * ob_point_temp.x + result[1];
+                            //         }
+                            //         if (std::fabs(angle) <= 3*M_PI/4.)
+                            //         {
+                            //             dist = (sqrtf(powf(p3.x - p2.x, 2.) + powf(p3.y - p2.y, 2.)) + sqrtf(powf(p2.x - p1.x, 2.) + powf(p2.y - p1.y, 2.)) * all_parameter.velocity_weight_prediction) * (sqrtf(powf(p3.x, 2.) + powf(p3.y, 2.)) * all_parameter.position_weight_prediction);
+                            //             ob_point_temp.x = p3.x + dist * cos(angle);
+                            //             ob_point_temp.y = p3.y + dist * sin(angle);
+                            //         }
+                            //         points_steps.point_next.push_back(ob_point_temp);
+                            //     }
+                            // // }
+                            // else if (mode == 1)
+                            // {
+                            //     a = ((p1.y - p2.y) / ((p1.x - p2.x) * (p2.x - p3.x))) - ((p1.y - p3.y) / ((p1.x - p3.x) * (p2.x - p3.x)));
+                            //     b = (p1.y - p2.y) / (p1.x - p2.x) - a * (p1.x + p2.x);
+                            //     c = p1.y - a * powf(p1.x, 2.) - b * p1.x;
+                            //     ob_point_temp.x = all_parameter.lidar_pose[0];
+                            //     ob_point_temp.y = a * powf(ob_point_temp.x, 2.) + b * ob_point_temp.x + c;
+                            //     ob_point_temp.z = 0.4;
+                            //     points_steps.point_next.push_back(ob_point_temp);
+                            // }
+                            // else if (mode == 2)
+                            // {
+                            //     a = ((p1.x - p2.x) / ((p1.y - p2.y) * (p2.y - p3.y))) - ((p1.x - p3.x) / ((p1.y - p3.y) * (p2.y - p3.y)));
+                            //     b = (p1.x - p2.x) / (p1.y - p2.y) - a * (p1.y + p2.y);
+                            //     c = p1.x - a * powf(p1.y, 2.) - b * p1.y;
+                            //     ob_point_temp.y = all_parameter.lidar_pose[1];
+                            //     ob_point_temp.x = a * powf(ob_point_temp.y, 2.) + b * ob_point_temp.y + c;
+                            //     ob_point_temp.z = 0.4;
+                            //     points_steps.point_next.push_back(ob_point_temp);
+                            // }
                             // points_steps.point_next.push_back(ob_point_temp);
                         }
                     }

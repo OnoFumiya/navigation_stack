@@ -399,9 +399,13 @@ class PATH_MOVING
                     target_index = global_path.size() - 1;
                 }
                 bool y_challenge = false;
-                int target_indexg;
+                int target_indexg = 0;
                 for (int i=global_path.size()-1; i>=target_index; i--)
                 {
+                    if (i<0)
+                    {
+                        break;
+                    }
                     if (euclidean_distance(global_path[global_path.size()-1].x, global_path[global_path.size()-1].y, global_path[i].x, global_path[i].y) >= dwa_param.goal_position_range)
                     {
                         target_indexg = i;
@@ -490,7 +494,6 @@ class PATH_MOVING
                     path_cans.clear();
                     local_costs.clear();
                     velocitys.clear();
-                    ROS_INFO("velocity.linear = %.2f, %.2f, velocity.angular = %.2f, %.2f",dw[0][0],dw[0][1],dw[1][0],dw[1][1]);
                     for (vel.linear.y=dw[0][0]; vel.linear.y<=dw[0][1]; vel.linear.y+=dwa_param.speed_reso_y)
                     {
                         for (vel.angular.z=dw[1][0]; vel.angular.z<=dw[1][1]; vel.angular.z+=dwa_param.speed_reso_ang)
@@ -552,8 +555,7 @@ class PATH_MOVING
                         velocity.angular.z = velocitys[best_index].angular.z;
                     }
                     ros::spinOnce();
-                    // ROS_INFO("velocity.linear = %.2f, %.2f, velocity.angular.z = %.2f",velocity.linear.x,velocity.linear.y,velocity.angular.z);
-                    // move_class.only_vel_pub(velocity);
+                    move_class.only_vel_pub(velocity);
                 }
                 else
                 {
