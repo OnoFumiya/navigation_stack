@@ -1,17 +1,15 @@
 <launch>
-    <arg name="file_name" default="new_cross_fst"/>
     <arg name="ydwa" default="true"/>
-
-    <include file="$(find dr_spaam_ros)/launch/dr_spaam_ros.launch"/>
-    <include file="$(find sobit_navigation)/launch/sobit_pro/sobit_pro_navigation_add_dr_spaam.launch">
+    <arg name="map_file" default="$(find sobit_mapping)/map/example_.yaml"/>
+    <include file="$(find sobit_navigation)/launch/sobit_pro/sobit_pro_navigation.launch">
+        <arg name="map_file" value="$(arg map_file)"/>
         <arg name="ydwa" value="$(arg ydwa)"/>
     </include>
+
+    <!-- <include file="$(find dr_spaam_ros)/launch/dr_spaam_ros.launch"/> -->
     <node pkg="navigation_stack" type="step_point_publisher" name="step_point_publisher" output="screen" respawn="true"/>
     <node pkg="navigation_stack" type="point_plot" name="point_plot" output="screen" respawn="true"/>
     <node pkg="navigation_stack" type="object_point_publisher" name="object_point_publisher" output="screen" respawn="true"/>
     <rosparam command="load" file="$(find navigation_stack)/param/prediction_leg_parameter.yaml"/>
     <rosparam command="load" file="$(find navigation_stack)/param/pro_move_base_param.yaml"/>
-
-    <!-- <node pkg="navigation_stack" type="result.py" name="result" output="screen" arg="$(arg file_name)"/>
-    <node pkg="navigation_stack" type="goal_pose_publisher.py" name="goal_pose_publisher" output="screen" arg="10"/> -->
 </launch>

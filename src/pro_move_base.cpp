@@ -424,7 +424,8 @@ class PATH_MOVING
                     }
                     Vector2d resultg = Ag.colPivHouseholderQr().solve(bg);
                     float path_angle_g = atan(resultg[0]);
-                    if (std::fabs(path_angle_g) < 20*M_PI/180.)
+                    printf("path_angle_g = %f\n",path_angle_g);
+                    if (std::fabs(path_angle_g) < 45*M_PI/180.)
                     {
                         if (0 < global_path[global_path.size()-1].x)
                         {
@@ -578,28 +579,28 @@ class PATH_MOVING
             move_class.stop_vel();
             ros::spinOnce();
         }
-        void dynamic_window(double dw[2][2], geometry_msgs::Twist vel)
-        {
-            double dw1[2][2] = {{dwa_param.min_speed_x                                , dwa_param.max_speed_x                                },{(dwa_param.max_angle)*(-1)                                , dwa_param.max_angle                                       }};
-            double dw2[2][2] = {{vel.linear.x - dwa_param.max_accel_x*dwa_param.delta_time, vel.linear.x + dwa_param.max_accel_x*dwa_param.delta_time},{vel.angular.z - dwa_param.max_angle_accel*dwa_param.delta_time, vel.angular.z + dwa_param.max_angle_accel*dwa_param.delta_time}};
-            for (int i=0; i<2; i++)
-            {
-                for (int j=0; j<2; j++)
-                {
-                    if (((dw1[i][j] < dw2[i][j]) && (j==0)) || ((dw2[i][j] < dw1[i][j]) && (j==1)))
-                    {
-                        dw[i][j] = dw2[i][j];
-                    }
-                    else
-                    {
-                        dw[i][j] = dw1[i][j];
-                    }
-                }
-            }
-        }
+        // void dynamic_window(double dw[2][2], geometry_msgs::Twist vel)
+        // {
+        //     double dw1[2][2] = {{dwa_param.min_speed_x                                , dwa_param.max_speed_x                                },{(dwa_param.max_angle)*(-1)                                , dwa_param.max_angle                                       }};
+        //     double dw2[2][2] = {{vel.linear.x - dwa_param.max_accel_x*dwa_param.delta_time, vel.linear.x + dwa_param.max_accel_x*dwa_param.delta_time},{vel.angular.z - dwa_param.max_angle_accel*dwa_param.delta_time, vel.angular.z + dwa_param.max_angle_accel*dwa_param.delta_time}};
+        //     for (int i=0; i<2; i++)
+        //     {
+        //         for (int j=0; j<2; j++)
+        //         {
+        //             if (((dw1[i][j] < dw2[i][j]) && (j==0)) || ((dw2[i][j] < dw1[i][j]) && (j==1)))
+        //             {
+        //                 dw[i][j] = dw2[i][j];
+        //             }
+        //             else
+        //             {
+        //                 dw[i][j] = dw1[i][j];
+        //             }
+        //         }
+        //     }
+        // }
         void dynamic_window_2(double dw[2][2], geometry_msgs::Twist vel)
         {
-            double dw1[2][2] = {{dwa_param.min_speed_y                                , dwa_param.max_speed_y                                },{(dwa_param.max_angle_y)*(-1)                                , dwa_param.max_angle_y                                       }};
+            double dw1[2][2] = {{dwa_param.min_speed_y                                    , dwa_param.max_speed_y                                    },{(dwa_param.max_angle_y)*(-1)                                    , dwa_param.max_angle_y                                           }};
             double dw2[2][2] = {{vel.linear.y - dwa_param.max_accel_y*dwa_param.delta_time, vel.linear.y + dwa_param.max_accel_y*dwa_param.delta_time},{vel.angular.z - dwa_param.max_angle_accel_y*dwa_param.delta_time, vel.angular.z + dwa_param.max_angle_accel_y*dwa_param.delta_time}};
             for (int i=0; i<2; i++)
             {

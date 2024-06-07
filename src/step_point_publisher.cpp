@@ -119,12 +119,6 @@ class OBJECT_DETECT
         ros::Subscriber object_sub;
         ros::Subscriber robotvel_sub;
         ALL_PARAMETER all_parameter;
-        // float lidar_pose[2] = {0.2, 0.0};
-        // int sampling_step = 5;
-        // float max_human_vel = 1.5;
-        // float max_human_radius = 0.80;
-        // float human_noise = 0.4;
-        // float detect_range_time = 0.1;
         bool start_flag;
         std::vector<geometry_msgs::Point> object_points;
         std::vector<geometry_msgs::Point> points_base;

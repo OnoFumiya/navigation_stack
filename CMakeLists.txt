@@ -192,11 +192,11 @@ target_link_libraries(cpp_lecture
   yaml-cpp
 )
 
-add_executable(pro_move_base src/pro_move_base.cpp)
-target_link_libraries(pro_move_base
-  ${catkin_LIBRARIES}
-  ${PYTHON_LIBRARIES}
-)
+# add_executable(pro_move_base src/pro_move_base.cpp)
+# target_link_libraries(pro_move_base
+#   ${catkin_LIBRARIES}
+#   ${PYTHON_LIBRARIES}
+# )
 
 add_executable(point_plot src/point_plot.cpp)
 target_link_libraries(point_plot
