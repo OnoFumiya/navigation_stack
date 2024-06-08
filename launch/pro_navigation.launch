@@ -12,5 +12,4 @@
     <node pkg="navigation_stack" type="point_plot" name="point_plot" output="screen" respawn="true"/>
     <node pkg="navigation_stack" type="object_point_publisher" name="object_point_publisher" output="screen" respawn="true"/>
     <rosparam command="load" file="$(find navigation_stack)/param/prediction_leg_parameter.yaml"/>
-    <rosparam command="load" file="$(find navigation_stack)/param/pro_move_base_param.yaml"/>
 </launch>
