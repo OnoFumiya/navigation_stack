@@ -32,11 +32,28 @@
 // using namespace Eigen;
 // using namespace std;
 
-
+// int main(int argc, char **argv)
+// {
+//     ros::init(argc, argv, "cpp_lecture");
+//     matplotlibcpp::cla();
+//     matplotlibcpp::plot({0},{1});
+//     matplotlibcpp::show();
+//     ros::spinOnce();
+//     ros::spin();
+//     return 0;
+// }
 int main(int argc, char **argv)
 {
     ros::init(argc, argv, "cpp_lecture");
-    ros::spinOnce();
-    ros::spin();
-    return 0;
+    std::vector<double> x,y;
+
+    for(int i=0;i<100;i++){
+        x.push_back(1.0*i/100);
+        y.push_back((1.0*i/100)*(1.0*i/100));
+    }
+
+    matplotlibcpp::plot(x,y);
+    matplotlibcpp::xlim(0,10);
+    matplotlibcpp::show();
+
 }
