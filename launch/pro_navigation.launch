@@ -1,7 +1,7 @@
 <launch>
     <arg name="ydwa" default="true"/>
     <arg name="dr_spaam" default="true"/>
-    <arg name="map_file" default="$(find sobit_mapping)/map/ex.yaml"/>
+    <arg name="map_file" default="$(find sobit_mapping)/map/f709.yaml"/>
     <include file="$(find sobit_navigation)/launch/sobit_pro/sobit_pro_navigation.launch">
         <arg name="map_file" value="$(arg map_file)"/>
         <arg name="ydwa" value="$(arg ydwa)"/>

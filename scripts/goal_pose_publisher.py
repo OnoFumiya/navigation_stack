@@ -11,7 +11,7 @@ def main(stop_time):
     nav_goal = PoseStamped()
     nav_goal.header.stamp = rospy.Time.now()
     nav_goal.header.frame_id = "map"
-    nav_goal.pose.position.x = 5.427359104156494
+    nav_goal.pose.position.x = 4.227359104156494
     nav_goal.pose.position.y = 0.16373726725578308
     nav_goal.pose.position.z = 0.0
     nav_goal.pose.orientation.x = 0.0
