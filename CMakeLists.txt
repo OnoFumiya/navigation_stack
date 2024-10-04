@@ -192,6 +192,13 @@ target_link_libraries(cpp_lecture
   yaml-cpp
 )
 
+add_executable(predict_traj src/predict_traj.cpp)
+target_link_libraries(predict_traj
+  ${catkin_LIBRARIES}
+  ${PYTHON_LIBRARIES}
+  yaml-cpp
+)
+
 # add_executable(pro_move_base src/pro_move_base.cpp)
 # target_link_libraries(pro_move_base
 #   ${catkin_LIBRARIES}
