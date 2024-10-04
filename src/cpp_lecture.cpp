@@ -73,35 +73,24 @@ int main(int argc, char **argv)
     // シグモイド曲線
     double L, k, x_c, x_diff, y_diff;
     x_c = x[1];
-    // x_c = x[2]/2 + x[0]/2;
-    // k = (y[1] - y[0]) / (x[1] - x[0]);
     k = 1.0;
     L = y[2];
-    // if (y[0] < y[2]) {
-    //     L = y[2] - y[0];
-    //     y_diff = y[0];
-    // }
-    // else {
-    //     L = y[0] - y[2];
-    //     y_diff = y[2];
-    // }
-    // if (x[0] < x[2]) x_diff = x[0];
-    // else             x_diff = x[2];
-
 
     // 描画
-    for (int i=0; i<300; i++) {
+    for (int i=-2000; i<2000; i++) {
         double ix = ((double)i/100);
         func_2d_x.push_back(ix);
         func_2d_y.push_back(a*std::pow(ix, 2) + b*ix + c);
 
         func_sig_x.push_back(ix);
-        func_sig_y.push_back(L / (1.0 + exp(-k * ((ix) - x_c))));
+        // func_sig_y.push_back(L / (1.0 + exp(-k * ((ix) - x_c))));
+        func_sig_y.push_back(100 / (1 + exp(-4 * ix)));
     }
+    printf("%f, %f %f\na = %f\n", (100 / (1 + exp(-4 * -0.01))), (100 / (1 + exp(-4 * 0))), (100 / (1 + exp(-4 * 0.0001))), ((100 / (1 + exp(-4 * 0.0001))) - (100 / (1 + exp(-4 * -0.0001)))) / 0.0002);
 
     // matplotlibcpp::plot(func_2d_x,func_2d_y, "-y");
     matplotlibcpp::plot(func_sig_x,func_sig_y, "--b");
-    matplotlibcpp::plot(x, y, "ob");
+    // matplotlibcpp::plot(x, y, "ob");
     matplotlibcpp::show();
 
 }
