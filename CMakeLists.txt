@@ -5,6 +5,9 @@ project(navigation_stack)
 # add_compile_options(-std=c++11)
 add_compile_options(-std=c++14)
 
+find_package(OpenCV 4.2.0 REQUIRED PATHS "/opt/opencv/opencv_4.2.0/")
+find_package(NLopt REQUIRED)
+
 ## Find catkin macros and libraries
 ## if COMPONENTS list like find_package(catkin REQUIRED COMPONENTS xyz)
 ## is used, also find other catkin packages
@@ -22,11 +25,14 @@ find_package(catkin REQUIRED COMPONENTS
   tf2_ros
   tf2_geometry_msgs
   tf
+  cv_bridge
+  # nlopt
 )
 
 ## System dependencies are found with CMake's conventions
 find_package(PythonLibs REQUIRED)
 find_package(Eigen3 REQUIRED)
+
 
 ## Uncomment this if the package has a setup.py. This macro ensures
 ## modules and global scripts declared therein get installed
@@ -118,7 +124,7 @@ generate_messages(
 catkin_package(
  INCLUDE_DIRS include
 #  LIBRARIES navigation_stack
- CATKIN_DEPENDS roscpp rospy std_msgs geometry_msgs dr_spaam_ros eigen_conversions visualization_msgs message_runtime
+ CATKIN_DEPENDS roscpp rospy std_msgs geometry_msgs dr_spaam_ros eigen_conversions visualization_msgs cv_bridge message_runtime
 #  DEPENDS system_lib
 )
 
@@ -190,6 +196,7 @@ target_link_libraries(cpp_lecture
   ${catkin_LIBRARIES}
   ${PYTHON_LIBRARIES}
   yaml-cpp
+  nlopt
 )
 
 add_executable(predict_traj src/predict_traj.cpp)
@@ -197,6 +204,7 @@ target_link_libraries(predict_traj
   ${catkin_LIBRARIES}
   ${PYTHON_LIBRARIES}
   yaml-cpp
+  nlopt
 )
 
 # add_executable(pro_move_base src/pro_move_base.cpp)

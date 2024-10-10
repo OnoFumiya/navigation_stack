@@ -1,0 +1,9 @@
+<launch>
+    <arg name="set_pt"     default="false" />
+    <arg name="no_path_del" default="false" />
+    <node pkg="navigation_stack" type="predict_traj" name="predict_traj"  output="screen">
+        <param name="set_pt"     value="$(arg set_pt)"/>
+        <param name="no_path_del" value="$(arg no_path_del)"/>
+    </node>
+    <node pkg="rviz" type="rviz" name="rviz" args="-d $(find navigation_stack)/config/rviz/base.rviz" />
+</launch>
