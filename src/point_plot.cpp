@@ -210,7 +210,8 @@ class PLOT
                 geometry_msgs::Point32 pt;
                 pt.x = object_points_steps.point_next[i].x;
                 pt.y = object_points_steps.point_next[i].y;
-                pt.z = object_points_steps.point_next[i].z;
+                pt.z = 0.3;
+                // pt.z = object_points_steps.point_next[i].z;
                 pcl.points.push_back(pt);
             }
             start_flag_point = true;
@@ -239,7 +240,7 @@ class PLOT
             pub_marker_step2 = nh.advertise<visualization_msgs::Marker>(all_parameter.step2_marker, 10);
             pub_marker_step3 = nh.advertise<visualization_msgs::Marker>(all_parameter.step3_marker, 10);
             pub_marker_step_next = nh.advertise<visualization_msgs::Marker>(all_parameter.next_step_marker, 10);
-            pub_cost = nh.advertise<sensor_msgs::PointCloud>(all_parameter.cost_topic, 10);
+            pub_cost = nh.advertise<sensor_msgs::PointCloud>(all_parameter.cost_topic, 1);
             defalt_pose.position.x = 0.0;
             defalt_pose.position.y = 0.0;
             defalt_pose.position.z = 0.0;

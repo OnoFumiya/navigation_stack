@@ -76,13 +76,6 @@ class RvizMarkerLibrary
         }
 };
 
-// std::vector<double> x;
-// std::vector<double> y;
-// double equation(const std::vector<double> &sx, std::vector<double> &grad, void *my_func_data) {
-//     double term1 = (y[0] - y[1]) / (1. / (1. + exp(-sx[0] * (x[0] - x[1]))) - 0.5);
-//     double term2 = (y[2] - y[1]) / (1. / (1. + exp(-sx[0] * (x[2] - x[1]))) - 0.5);
-//     return term1 - term2; // 方程式の値を返す
-// }
 
 class Trajectory
 {
@@ -272,8 +265,6 @@ class Trajectory
             type3_check = true;
             if ((x[0] == x[1]) || (x[1] == x[2]) || (x[2] == x[0])) type2_check = false;
             if ((y[0] == y[1]) || (y[1] == y[2]) || (y[2] == y[0])) type3_check = false;
-            // if ((std::fabs(x[0]-x[1]) < 0.001) || (std::fabs(x[1]-x[2]) < 0.001) || (std::fabs(x[2]-x[0]) < 0.001)) type2_check = false;
-            // if ((std::fabs(y[0]-y[1]) < 0.001) || (std::fabs(y[1]-y[2]) < 0.001) || (std::fabs(y[2]-y[0]) < 0.001)) type3_check = false;
 
             // 算出
             if (type2_check) {
@@ -348,6 +339,12 @@ class Trajectory
                 if ((((y[0] <= y[1]) && (y[1] <= y[2])) || ((y[2] <= y[1]) && (y[1] <= y[0]))) && (y[2] != y[0])) {
                         type5_check = true;
                 } else  type5_check = false;
+                if (type4_check) {
+                    if ( (( atan((y[2]-y[0]) / (x[2]-x[0]))/2. + atan((y[2]-y[1]) / (x[2]-x[1]))/2. ) < (-5*M_PI/6.)) && ((5*M_PI/6.) < ( atan((y[2]-y[0]) / (x[2]-x[0]))/2. + atan((y[2]-y[1]) / (x[2]-x[1]))/2. )) ) type4_check = false;
+                }
+                if (type5_check) {
+                    if ( (-M_PI/6.) < (( atan((y[2]-y[0]) / (x[2]-x[0]))/2. + atan((y[2]-y[1]) / (x[2]-x[1]))/2. )) && (( atan((y[2]-y[0]) / (x[2]-x[0]))/2. + atan((y[2]-y[1]) / (x[2]-x[1]))/2. ) < (M_PI/6.)) ) type5_check = false;
+                }
             }
         }
         // 更新

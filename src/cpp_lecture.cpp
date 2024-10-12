@@ -31,35 +31,38 @@
 #include <navigation_stack/PathPoint.h>
 #include <Eigen/Dense>
 
-
-double equation(const std::vector<double> &sx, std::vector<double> &grad, void *my_func_data) {
-    double y12, y32, x12, x32;
-    y12 = -2.7;
-    y32 = 2.6;
-    x12 = -3.5;
-    x32 = 1.4;
-    double term1 = (y12) / (1. / (1. + exp(-sx[0] * (x12))) - 0.5);
-    double term2 = (y32) / (1. / (1. + exp(-sx[0] * (x32))) - 0.5);
-    return std::abs(term1 - term2); // 方程式の値を返す
-}
-
+class Cpp_Lecture
+{
+    private:
+        double a, b, c;
+    public:
+        Cpp_Lecture() {
+            loop();
+        }
+        void loop() {
+            a = 1.;
+            b = 4.;
+            c = 6.6666;
+            std::vector<geometry_msgs::Point> tabc(3);
+            tabc[0].x = a;
+            tabc[1].y = b;
+            tabc[2].z = c;
+            check(tabc);
+            printf("(a , b , c ) = (%f, %f, %f)\n", a , b , c );
+            printf("(aa, bb, cc) = (%f, %f, %f)\n", tabc[0].x, tabc[1].y, tabc[2].z);
+        }
+        void check(std::vector<geometry_msgs::Point> &tt) {//double &ta, double &tb, double &tc
+            a = a + b + c;
+            b = a * b * c;
+            c = 0.;
+            tt[0].x = tt[0].x + tt[1].y + tt[2].z;
+            tt[1].y = tt[0].x * tt[1].y * tt[2].z;
+            tt[2].z = 0.;
+        }
+};
 
 int main(int argc, char **argv)
 {
     ros::init(argc, argv, "cpp_lecture");
-    nlopt::opt opt(nlopt::LN_COBYLA, 1); // 最適化手法を選択
-
-    // 最適化問題を設定
-    opt.set_min_objective(equation, nullptr);
-    opt.set_xtol_rel(1e-6); // 収束条件
-    std::vector<double> sx = {0.1}; // 初期推定値
-
-    double minf; // 最小値
-    nlopt::result result = opt.optimize(sx, minf);
-
-    if (result < 0) {
-        std::cerr << "最適化失敗" << std::endl;
-    } else {
-        std::cout << "解: " << sx[0] << std::endl;
-    }
+    Cpp_Lecture cpp_lecture;
 }

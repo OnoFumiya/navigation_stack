@@ -1,42 +1,15 @@
 <launch>
-  <!-- <arg name="rviz"                    default="false"/>
-  <arg name="rviz_cfg"                default="$(find navigation_stack)/config/rviz/navigation_stack.rviz"/>
-  <node if="$(arg rviz)" pkg="rviz" type="rviz" name="rviz" args="-d $(arg rviz_cfg)"/> -->
+    <!-- <arg name="ydwa" default="true"/> -->
+    <!-- <arg name="dr_spaam" default="true"/> -->
+    <!-- <arg name="map_file" default="$(find sobit_mapping)/map/f709.yaml"/> -->
+    <!-- <include file="$(find sobit_navigation)/launch/sobit_pro/sobit_pro_navigation.launch">
+        <arg name="map_file" value="$(arg map_file)"/>
+        <arg name="ydwa" value="$(arg ydwa)"/>
+    </include> -->
 
-  <!-- these are the arguments you can pass this launch file, for example paused:=true -->
-  <arg name="model" default="$(find sobit_education_gazebo)/robots/sobit_education.urdf.xacro"/>
-  <arg name="paused" default="false"/>
-  <arg name="use_sim_time" default="true"/>
-  <arg name="gui" default="true"/>
-  <arg name="headless" default="false"/>
-  <arg name="debug" default="false"/>
-  <arg name="world_name" default="test_gazebo.world"/>
-
-  <!-- We resume the logic in empty_world.launch, changing only the name of the world to be launched -->
-  <!-- <include file="$(find gazebo_ros)/launch/empty_world.launch"> -->
-    <!-- <arg name="debug" value="$(arg debug)" /> -->
-    <!-- <arg name="gui" value="$(arg gui)" /> -->
-    <!-- <arg name="paused" value="$(arg paused)"/> -->
-    <!-- <arg name="use_sim_time" value="$(arg use_sim_time)"/> -->
-    <!-- <arg name="headless" value="$(arg headless)"/> -->
-  <!-- </include> -->
-  <include file="$(find gazebo_ros)/launch/empty_world.launch">
-    <arg name="world_name" value="$(find navigation_stack)/worlds/$(arg world_name)"/>
-    <!-- <arg name="paused" value="false"/>
-    <arg name="use_sim_time" value="true"/>
-    <arg name="gui" value="true"/>
-    <arg name="headless" value="false"/>
-    <arg name="debug" value="false"/> -->
-  </include>
-
-  <rosparam file="$(find sobit_edu_library)/config/sobit_edu_pose.yaml" command="load"/>
-
-  <!-- Load the URDF into the ROS Parameter Server -->
-  <arg name="urdf_file" default="$(find xacro)/xacro $(arg model)"/>
-  <param name="robot_description" command="$(arg urdf_file)"/>
-  <!-- Run a python script to the send a service call to gazebo_ros to spawn a URDF robot -->
-  <node name="urdf_spawner" pkg="gazebo_ros" type="spawn_model" respawn="false" output="screen" args="-urdf -model sobit_education -param robot_description"/>
-  <!-- ros_control motoman launch file -->
-  <include file="$(find sobit_education_gazebo)/launch/sobit_education_control_gazebo.launch"/>
-  <!-- <node name="rviz" pkg="rviz" type="rviz" args="-d $(find sobit_education_gazebo)/rviz/display.rviz"/> -->
+    <!-- <include if="$(arg dr_spaam)" file="$(find dr_spaam_ros)/launch/dr_spaam_ros.launch"/> -->
+    <node pkg="navigation_stack" type="step_point_publisher" name="step_point_publisher" output="screen" respawn="true"/>
+    <!-- <node pkg="navigation_stack" type="point_plot" name="point_plot" output="screen" respawn="true"/> -->
+    <!-- <node pkg="navigation_stack" type="object_point_publisher" name="object_point_publisher" output="screen" respawn="true"/> -->
+    <rosparam command="load" file="$(find navigation_stack)/param/prediction_leg_parameter.yaml"/>
 </launch>

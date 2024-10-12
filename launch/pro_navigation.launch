@@ -1,15 +1,18 @@
 <launch>
     <arg name="ydwa" default="true"/>
-    <arg name="dr_spaam" default="true"/>
+    <arg name="dr_spaam" default="$(arg ydwa)"/>
     <arg name="map_file" default="$(find sobit_mapping)/map/f709.yaml"/>
     <include file="$(find sobit_navigation)/launch/sobit_pro/sobit_pro_navigation.launch">
         <arg name="map_file" value="$(arg map_file)"/>
         <arg name="ydwa" value="$(arg ydwa)"/>
+        <arg name="initial_pose_x" value="0.13"/>
+        <arg name="initial_pose_y" value="0.45"/>
+        <arg name="initial_pose_a" value="-0.055"/>
     </include>
 
     <include if="$(arg dr_spaam)" file="$(find dr_spaam_ros)/launch/dr_spaam_ros.launch"/>
-    <node pkg="navigation_stack" type="step_point_publisher" name="step_point_publisher" output="screen" respawn="true"/>
-    <node pkg="navigation_stack" type="point_plot" name="point_plot" output="screen" respawn="true"/>
-    <node pkg="navigation_stack" type="object_point_publisher" name="object_point_publisher" output="screen" respawn="true"/>
+    <node if="$(arg ydwa)" pkg="navigation_stack" type="step_point_publisher" name="step_point_publisher" output="screen" respawn="true"/>
+    <node if="$(arg ydwa)" pkg="navigation_stack" type="point_plot" name="point_plot" output="screen" respawn="true"/>
+    <node if="$(arg ydwa)" pkg="navigation_stack" type="object_point_publisher" name="object_point_publisher" output="screen" respawn="true"/>
     <rosparam command="load" file="$(find navigation_stack)/param/prediction_leg_parameter.yaml"/>
 </launch>
