@@ -7,7 +7,7 @@ import time
 class GoalPosePublisher(Node):
     def __init__(self, stop_time):
         super().__init__('goal_pose_publisher')
-        self.publisher_ = self.create_publisher(PoseStamped, '/move_base_simple/goal', 10)
+        self.publisher_ = self.create_publisher(PoseStamped, '/goal_pose', 10)
 
         # カウントダウン
         for i in range(stop_time):
@@ -19,7 +19,7 @@ class GoalPosePublisher(Node):
         now = self.get_clock().now().to_msg()
         goal_msg.header.stamp = now
         goal_msg.header.frame_id = "map"
-        goal_msg.pose.position.x = 4.227359104156494
+        goal_msg.pose.position.x = 9.227359104156494
         goal_msg.pose.position.y = 0.16373726725578308
         goal_msg.pose.position.z = 0.0
         goal_msg.pose.orientation.x = 0.0

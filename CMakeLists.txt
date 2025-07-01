@@ -14,8 +14,10 @@ find_package(tf2_ros REQUIRED)
 find_package(tf2_geometry_msgs REQUIRED)
 find_package(sensor_msgs REQUIRED)
 find_package(std_msgs REQUIRED)
-find_package(std_srvs REQUIRED)
+find_package(nav2_msgs REQUIRED)
 find_package(geometry_msgs REQUIRED)
+find_package(pcl_conversions REQUIRED)
+find_package(pcl_ros REQUIRED)
 
 # uncomment the following section in order to fill in
 # further dependencies manually.
@@ -29,11 +31,11 @@ install(DIRECTORY
 )
 
 add_executable(object_point_2d_lidar src/object_point_2d_lidar.cpp)
-ament_target_dependencies(object_point_2d_lidar rclcpp geometry_msgs tf2_ros tf2 tf2_geometry_msgs sensor_msgs std_msgs std_srvs rosidl_default_runtime)
+ament_target_dependencies(object_point_2d_lidar rclcpp geometry_msgs tf2_ros tf2 tf2_geometry_msgs pcl_ros pcl_conversions sensor_msgs std_msgs nav2_msgs rosidl_default_runtime)
 install(TARGETS object_point_2d_lidar DESTINATION lib/${PROJECT_NAME})
 
 add_executable(object_point_prediction src/object_point_prediction.cpp)
-ament_target_dependencies(object_point_prediction rclcpp geometry_msgs tf2_ros tf2 tf2_geometry_msgs sensor_msgs std_msgs std_srvs rosidl_default_runtime)
+ament_target_dependencies(object_point_prediction rclcpp geometry_msgs tf2_ros tf2 tf2_geometry_msgs pcl_ros pcl_conversions sensor_msgs std_msgs nav2_msgs rosidl_default_runtime)
 install(TARGETS object_point_prediction DESTINATION lib/${PROJECT_NAME})
 
 if(BUILD_TESTING)

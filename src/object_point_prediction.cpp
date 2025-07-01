@@ -2,11 +2,13 @@
 // #include <dr_spaam_ros/msg/leg_pose_array.hpp>
 #include <geometry_msgs/msg/pose_array.hpp>
 #include <sensor_msgs/msg/laser_scan.hpp>
+#include <sensor_msgs/msg/point_cloud.hpp>
 #include <geometry_msgs/msg/point_stamped.hpp>
 #include <geometry_msgs/msg/point.hpp>
 #include <geometry_msgs/msg/twist.hpp>
 // #include <navigation_stack/msg/walk_leg_point.hpp>
-#include <std_srvs/srv/empty.hpp>
+// #include <std_srvs/srv/empty.hpp>
+#include <nav2_msgs/srv/clear_costmap_except_region.hpp>
 #include <std_msgs/msg/header.hpp>
 #include <tf2_ros/buffer.h>
 #include <tf2_ros/transform_listener.h>
@@ -16,12 +18,33 @@
 #include <message_filters/synchronizer.h>
 #include <algorithm>
 
+#include <pcl/common/common.h>
+#include <pcl/point_cloud.h>
+#include <pcl/point_types.h>
+#include <pcl/filters/passthrough.h>
+#include <pcl/filters/crop_box.h>
+#include <pcl/search/kdtree.h>
+#include <pcl/segmentation/extract_clusters.h>
+#include <pcl_conversions/pcl_conversions.h>
+#include <pcl_ros/transforms.hpp>
+
+
+#include <chrono>
+#include <cstdlib>
+#include <memory>
+
+using namespace std::chrono_literals;
+
 using std::placeholders::_1;
 using std::placeholders::_2;
 // using DrspaamScanSyncPolicy = message_filters::sync_policies::ApproximateTime<
 //   geometry_msgs::msg::PoseArray,
 //   sensor_msgs::msg::LaserScan>;
-typedef message_filters::sync_policies::ApproximateTime<geometry_msgs::msg::PoseArray, sensor_msgs::msg::LaserScan> DrspaamScanSyncPolicy;
+// typedef message_filters::sync_policies::ApproximateTime<geometry_msgs::msg::PoseArray, sensor_msgs::msg::LaserScan> DrspaamScanSyncPolicy;
+
+typedef pcl::PointXYZ PointT;
+typedef pcl::PointCloud<PointT> PointCloud;
+
 
 class ALL_PARAMETER {
     public:
@@ -108,36 +131,39 @@ class ObjectDetectNode : public rclcpp::Node {
         ObjectDetectNode() : Node("step_point_publisher"), tf_buffer_(this->get_clock()), tf_listener_(tf_buffer_) {}
 
         void init() {
-            // all_parameter = std::make_unique<ALL_PARAMETER>(shared_from_this());
-            // params_ = std::make_shared<ALL_PARAMETER>(shared_from_this());
             all_parameter = std::make_unique<ALL_PARAMETER>(shared_from_this());
 
             robot_vel_sub_ = create_subscription<geometry_msgs::msg::Twist>(
-            "/mobile_base/commands/velocity", 10, std::bind(&ObjectDetectNode::callback_robotvel, this, _1));
+            "/sobit_pro/cmd_vel", 10, std::bind(&ObjectDetectNode::callback_robotvel, this, _1));
 
             pub_point1_ = create_publisher<geometry_msgs::msg::PoseArray>("/dr_spaam_navigation/object_pointers_1", 1);
             pub_point2_ = create_publisher<geometry_msgs::msg::PoseArray>("/dr_spaam_navigation/object_pointers_2", 1);
             pub_point3_ = create_publisher<geometry_msgs::msg::PoseArray>("/dr_spaam_navigation/object_pointers_3", 1);
             pub_next_point_ = create_publisher<geometry_msgs::msg::PoseArray>("/dr_spaam_navigation/object_next_pointers", 1);
             pub_removed_scan_ = create_publisher<sensor_msgs::msg::LaserScan>(all_parameter->removal_scan_topic, 10);
+            pub_object_cloud_ = create_publisher<sensor_msgs::msg::PointCloud2>(all_parameter->cost_topic, 1);
 
-            clear_client_ = create_client<std_srvs::srv::Empty>("/move_base/clear_costmaps");
+            clear_client_ = this->create_client<nav2_msgs::srv::ClearCostmapExceptRegion>("/local_costmap/clear_except_local_costmap");
+            // clear_client_->wait_for_service(1s)
+            while (!clear_client_->wait_for_service(1s)) {}
 
-            // sub_legs_.subscribe(this, all_parameter->merge_object_topic);
-            // sub_scan_.subscribe(this, "/sobit_pro/scan");
+            // sub_legs_ = std::make_shared<message_filters::Subscriber<geometry_msgs::msg::PoseArray>>(this, all_parameter->merge_object_topic);
+            // sub_scan_ = std::make_shared<message_filters::Subscriber<sensor_msgs::msg::LaserScan>>(this, "/sobit_pro/scan");
+            // sync_     = std::make_shared<message_filters::Synchronizer<DrspaamScanSyncPolicy>>(DrspaamScanSyncPolicy(500), *sub_legs_, *sub_scan_);
+            // sync_->registerCallback(&ObjectDetectNode::callback_object, this);
 
-            // sync_ = std::make_shared<message_filters::Synchronizer<DrspaamScanSyncPolicy>>(
-            // DrspaamScanSyncPolicy(100), sub_legs_, sub_scan_);
-            // sync_->registerCallback(std::bind(&ObjectDetectNode::callback_object, this, _1, _2));
-            sub_legs_ = std::make_shared<message_filters::Subscriber<geometry_msgs::msg::PoseArray>>(this, all_parameter->merge_object_topic);
-            sub_scan_ = std::make_shared<message_filters::Subscriber<sensor_msgs::msg::LaserScan>>(this, "/sobit_pro/scan");
-            sync_     = std::make_shared<message_filters::Synchronizer<DrspaamScanSyncPolicy>>(DrspaamScanSyncPolicy(200), *sub_legs_, *sub_scan_);
-            sync_->registerCallback(&ObjectDetectNode::callback_object, this);
+            sub_legs_ = this->create_subscription<geometry_msgs::msg::PoseArray>(
+                all_parameter->merge_object_topic, 1, std::bind(&ObjectDetectNode::callback_object, this, _1));
+            sub_scan_ = this->create_subscription<sensor_msgs::msg::LaserScan>(
+                "/sobit_pro/scan", 1, std::bind(&ObjectDetectNode::callback, this, _1));
 
             start_flag_ = false;
+            scan_flag_ = false;
             rclcpp::Rate r(5);
             while (rclcpp::ok()) {
                 r.sleep();
+                // rclcpp::spin_once(this, timeout_sec=0.2);
+                rclcpp::spin_some(shared_from_this());
                 if (start_flag_) break;
             }
             point1_.poses.resize(object_points_.poses.size());
@@ -149,14 +175,31 @@ class ObjectDetectNode : public rclcpp::Node {
             point_next_.poses.clear();
             counter_ = 0;
 
-            timer_ = this->create_wall_timer(std::chrono::milliseconds(100),
-                std::bind(&ObjectDetectNode::publish_step_points, this));
-            RCLCPP_INFO(get_logger(), "Waiting first synced message...");
+            RCLCPP_INFO(this->get_logger(), "Waiting first synced message...");
+
+            // timer_ = this->create_wall_timer(std::chrono::milliseconds((int)(1/(all_parameter->detect_range_time*all_parameter->sampling_step))),
+            //     std::bind(&ObjectDetectNode::publish_step_points, this));
+
+            rclcpp::WallRate loop(1/all_parameter->detect_range_time);
+            while (rclcpp::ok()) {
+                loop.sleep();
+                // sleep(all_parameter->detect_range_time);
+                // sleep(0.5);
+                publish_step_points();
+                rclcpp::spin_some(shared_from_this());
+            }
         }
 
     private:
         void callback_robotvel(const geometry_msgs::msg::Twist::SharedPtr msg) {
             robot_vel_ = *msg;
+        }
+
+        void callback(const sensor_msgs::msg::LaserScan::SharedPtr msg) {
+            // RCLCPP_INFO(this->get_logger(), "SCAN");
+            scan_ = *msg;
+            header_ = msg->header;
+            scan_flag_ = true;
         }
 
         geometry_msgs::msg::Point transform_point(
@@ -178,9 +221,9 @@ class ObjectDetectNode : public rclcpp::Node {
         }
 
         void callback_object(
-            const geometry_msgs::msg::PoseArray::SharedPtr msg,
-            const sensor_msgs::msg::LaserScan::SharedPtr scan)
+            const geometry_msgs::msg::PoseArray::SharedPtr msg)
         {
+            if (!scan_flag_) return;
             points_base_.poses.clear();
             object_points_.poses.clear();
             for (auto &pose : msg->poses) {
@@ -189,7 +232,7 @@ class ObjectDetectNode : public rclcpp::Node {
                 pt.position.y = pose.position.y + all_parameter->lidar_pose[1];
                 pt.position.z = 0.2;
                 double r = std::hypot(pt.position.x, pt.position.y);
-                if (r >= 0.25 && r <= scan->range_max) {
+                if (r >= 0.25 && r <= scan_.range_max) {
                     points_base_.poses.push_back(pt);
                     geometry_msgs::msg::Pose pos;
                     pos.position = transform_point(all_parameter->robot_base, all_parameter->map, pt.position);
@@ -197,13 +240,13 @@ class ObjectDetectNode : public rclcpp::Node {
                 }
             }
 
-            auto out = *scan;
-            for (size_t i = 0; i < scan->ranges.size(); ++i) {
-                double x = scan->ranges[i]
-                * std::cos(scan->angle_min + i * scan->angle_increment)
+            auto out = scan_;
+            for (size_t i = 0; i < scan_.ranges.size(); ++i) {
+                double x = scan_.ranges[i]
+                * std::cos(scan_.angle_min + i * scan_.angle_increment)
                 + all_parameter->lidar_pose[0];
-                double y = scan->ranges[i]
-                * std::sin(scan->angle_min + i * scan->angle_increment)
+                double y = scan_.ranges[i]
+                * std::sin(scan_.angle_min + i * scan_.angle_increment)
                 + all_parameter->lidar_pose[1];
                 for (auto &ob : points_base_.poses) {
                 if (std::hypot(x - ob.position.x, y - ob.position.y) <= all_parameter->max_human_radius) {
@@ -214,7 +257,6 @@ class ObjectDetectNode : public rclcpp::Node {
             }
 
             pub_removed_scan_->publish(out);
-            header_ = scan->header;
             start_flag_ = true;
         }
 
@@ -348,6 +390,9 @@ class ObjectDetectNode : public rclcpp::Node {
         void publish_step_points() {
             if (!start_flag_) return;
 
+            PointCloud::Ptr pcl_cloud(new PointCloud());
+            sensor_msgs::msg::PointCloud2 cloud_msg;
+
             point1_.header = header_;
             point2_.header = header_;
             point3_.header = header_;
@@ -371,8 +416,11 @@ class ObjectDetectNode : public rclcpp::Node {
                 object_points_samplings[i].push_back(object_points_temp.poses[i].position);
             }
 
+            rclcpp::WallRate loop(1/all_parameter->detect_range_time);
             for (int i=1; i<=all_parameter->sampling_step; i++) {
-                sleep(all_parameter->detect_range_time);
+                loop.sleep();
+                // sleep(all_parameter->detect_range_time);
+                rclcpp::spin_some(shared_from_this());
                 object_points_temp.poses.resize(object_points_.poses.size());
                 copy(object_points_.poses.begin(), object_points_.poses.end(), object_points_temp.poses.begin());
                 for (size_t j=0; j<object_points_temp.poses.size(); j++) {
@@ -394,6 +442,10 @@ class ObjectDetectNode : public rclcpp::Node {
             if (0 < all_parameter->clear_per_times) {
                 if (all_parameter->clear_per_times <= counter_) {
                     // clear_client_.call(emp_srv_);  /// TODO
+                    auto emp_srv_ = std::make_shared<nav2_msgs::srv::ClearCostmapExceptRegion::Request>();
+                    emp_srv_->reset_distance = 0.;
+                    auto result = clear_client_->async_send_request(emp_srv_);
+                    rclcpp::spin_until_future_complete(shared_from_this(), result);
                     counter_ = 1;
                 }
                 else counter_++;
@@ -456,6 +508,11 @@ class ObjectDetectNode : public rclcpp::Node {
                 if ((std::sqrt(std::pow(p3.x - p2.x, 2) + std::pow(p3.y - p2.y, 2))/(2*all_parameter->detect_range_time) < all_parameter->human_noise) || (all_parameter->max_human_vel < std::sqrt(std::pow(p3.x - p2.x, 2) + std::pow(p3.y - p2.y, 2))/(2*all_parameter->detect_range_time))) {
                     geometry_msgs::msg::Pose pos;
                     pos.position = p3;
+                    PointT p;
+                    p.x = p3.x;
+                    p.y = p3.y;
+                    p.z = p3.z;
+                    pcl_cloud->points.push_back(p);
                     point_next_.poses.push_back(pos);
                     continue;
                 }
@@ -610,54 +667,65 @@ class ObjectDetectNode : public rclcpp::Node {
                     if (dist_robot_ob < std::sqrt(std::pow(sampling_pt.x - robot_pt.x, 2.) + std::pow(sampling_pt.y - robot_pt.y, 2.))) {
                         geometry_msgs::msg::Pose pos;
                         pos.position = p3;
+                        PointT p;
+                        p.x = p3.x;
+                        p.y = p3.y;
+                        p.z = p3.z;
+                        pcl_cloud->points.push_back(p);
                         point_next_.poses.push_back(pos);  // 残す　＝　step=0がベストだったというだけ
                     }
                 }
                 else {
                     geometry_msgs::msg::Pose pos;
+                    PointT p;
+                    p.x = next_pt.x;
+                    p.y = next_pt.y;
+                    p.z = next_pt.z;
+                    pcl_cloud->points.push_back(p);
                     pos.position = next_pt;
                     point_next_.poses.push_back(pos);
                 }
             }
 
+            pcl::toROSMsg(*pcl_cloud, cloud_msg);
+            cloud_msg.header = header_;
             pub_point1_->publish(point1_);
             pub_point2_->publish(point2_);
             pub_point3_->publish(point3_);
             pub_next_point_->publish(point_next_);
+            pub_object_cloud_->publish(cloud_msg);
         }
 
         rclcpp::Subscription<geometry_msgs::msg::Twist>::SharedPtr robot_vel_sub_;
+        rclcpp::Publisher<sensor_msgs::msg::PointCloud2>::SharedPtr pub_object_cloud_;
         rclcpp::Publisher<geometry_msgs::msg::PoseArray>::SharedPtr pub_point1_;
         rclcpp::Publisher<geometry_msgs::msg::PoseArray>::SharedPtr pub_point2_;
         rclcpp::Publisher<geometry_msgs::msg::PoseArray>::SharedPtr pub_point3_;
         rclcpp::Publisher<geometry_msgs::msg::PoseArray>::SharedPtr pub_next_point_;
         rclcpp::Publisher<sensor_msgs::msg::LaserScan>::SharedPtr pub_removed_scan_;
-        rclcpp::Client<std_srvs::srv::Empty>::SharedPtr clear_client_;
+        rclcpp::Client<nav2_msgs::srv::ClearCostmapExceptRegion>::SharedPtr clear_client_;
         rclcpp::TimerBase::SharedPtr timer_;
 
-        // message_filters::Subscriber<geometry_msgs::msg::PoseArray> sub_legs_;
-        // message_filters::Subscriber<sensor_msgs::msg::LaserScan> sub_scan_;
+        // std::shared_ptr<message_filters::Subscriber<geometry_msgs::msg::PoseArray>> sub_legs_;
+        // std::shared_ptr<message_filters::Subscriber<sensor_msgs::msg::LaserScan>> sub_scan_;
         // std::shared_ptr<message_filters::Synchronizer<DrspaamScanSyncPolicy>> sync_;
-        std::shared_ptr<message_filters::Subscriber<geometry_msgs::msg::PoseArray>> sub_legs_;
-        std::shared_ptr<message_filters::Subscriber<sensor_msgs::msg::LaserScan>> sub_scan_;
-        std::shared_ptr<message_filters::Synchronizer<DrspaamScanSyncPolicy>> sync_;
+        rclcpp::Subscription<geometry_msgs::msg::PoseArray>::SharedPtr sub_legs_;
+        rclcpp::Subscription<sensor_msgs::msg::LaserScan>::SharedPtr sub_scan_;
 
         tf2_ros::Buffer tf_buffer_;
         tf2_ros::TransformListener tf_listener_;
 
         geometry_msgs::msg::Twist robot_vel_;
-        bool start_flag_;
-        // std::vector<geometry_msgs::msg::Pose> points_base_, object_points_;
+        sensor_msgs::msg::LaserScan scan_;
+        bool start_flag_, scan_flag_;
         geometry_msgs::msg::PoseArray points_base_, object_points_;
         geometry_msgs::msg::PoseArray point1_;
         geometry_msgs::msg::PoseArray point2_;
         geometry_msgs::msg::PoseArray point3_;
         geometry_msgs::msg::PoseArray point_next_;
         std_msgs::msg::Header header_;
-        std_srvs::srv::Empty emp_srv_;
+        // nav2_msgs::srv::ClearCostmapExceptRegion emp_srv_;
         int counter_;
-        //   std::shared_ptr<ALL_PARAMETER> params_;
-        // ALL_PARAMETER all_parameter;
         std::unique_ptr<ALL_PARAMETER> all_parameter;
     };
 

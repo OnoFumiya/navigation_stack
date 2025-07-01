@@ -24,7 +24,7 @@ def generate_launch_description():
     param_config_cmd = DeclareLaunchArgument(
         'param_config',
         default_value=os.path.join(bringup_dir, 'config', 'moving_obstacles_prediction.yaml'),
-        description='Top-level namespace')
+        description='')
 
     object_pt =  Node(
         package='moving_obstacles_prediction',
@@ -46,6 +46,6 @@ def generate_launch_description():
 
     # Declare the launch options
     ld.add_action(param_config_cmd)
-    ld.add_action(object_pt)
+    # ld.add_action(object_pt)
     ld.add_action(predict_nd)
     return ld
