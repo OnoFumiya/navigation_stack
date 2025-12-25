@@ -17,13 +17,10 @@ from nav2_common.launch import RewrittenYaml
 
 
 def generate_launch_description():
-    # Get the launch directory
-    bringup_dir = get_package_share_directory('moving_obstacles_prediction')
-
     param_config = LaunchConfiguration('param_config')
     param_config_cmd = DeclareLaunchArgument(
         'param_config',
-        default_value=os.path.join(bringup_dir, 'config', 'moving_obstacles_prediction.yaml'),
+        default_value=os.path.join(get_package_share_directory('moving_obstacles_prediction'), 'config', 'moving_obstacles_prediction.yaml'),
         description='')
 
     object_pt =  Node(

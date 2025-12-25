@@ -1,4 +1,5 @@
 cmake_minimum_required(VERSION 3.8)
+cmake_policy(SET CMP0144 NEW)
 project(moving_obstacles_prediction)
 
 if(CMAKE_COMPILER_IS_GNUCXX OR CMAKE_CXX_COMPILER_ID MATCHES "Clang")
@@ -22,10 +23,11 @@ find_package(pcl_ros REQUIRED)
 # uncomment the following section in order to fill in
 # further dependencies manually.
 # find_package(<dependency> REQUIRED)
+include_directories(${PCL_INCLUDE_DIRS})
 
 install(DIRECTORY
   launch
-  rviz
+  # rviz
   config
   DESTINATION share/${PROJECT_NAME}
 )
