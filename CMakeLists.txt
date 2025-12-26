@@ -27,10 +27,24 @@ include_directories(${PCL_INCLUDE_DIRS})
 
 install(DIRECTORY
   launch
-  # rviz
+  rviz
+  map
   config
   DESTINATION share/${PROJECT_NAME}
 )
+
+
+install(DIRECTORY
+  param/sobit_home
+  param/sobit_pro
+  param/sobit_edu
+  param/sobit_mini
+  param/sobit_light
+  param/hsr_sim
+  param/hsrb_robot
+  DESTINATION share/${PROJECT_NAME}/param
+)
+
 
 add_executable(object_point_2d_lidar src/object_point_2d_lidar.cpp)
 ament_target_dependencies(object_point_2d_lidar rclcpp geometry_msgs tf2_ros tf2 tf2_geometry_msgs pcl_ros pcl_conversions sensor_msgs std_msgs nav2_msgs rosidl_default_runtime)
